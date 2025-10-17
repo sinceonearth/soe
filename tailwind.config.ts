@@ -70,10 +70,10 @@ const config: Config = {
           foreground: 'hsl(var(--sidebar-accent-foreground) / <alpha-value>)',
         },
         status: {
-          online: 'rgb(34 197 94)',    // ✅ Green
-          away: 'rgb(245 158 11)',     // ✅ Amber
-          busy: 'rgb(239 68 68)',      // ✅ Red
-          offline: 'rgb(156 163 175)', // ✅ Gray
+          online: 'rgb(34 197 94)',
+          away: 'rgb(245 158 11)',
+          busy: 'rgb(239 68 68)',
+          offline: 'rgb(156 163 175)',
         },
       },
       fontFamily: {
