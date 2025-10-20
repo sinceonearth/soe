@@ -6,43 +6,38 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  plugins: [
-    react(),
-    // 🧹 Removed @replit/vite-plugin-runtime-error-modal
-    // (was causing "Failed to parse JSON file" error in dev)
-  ],
+  root: path.resolve(__dirname, "client"), // ✅ Define Vite's root first
+
+  plugins: [react()],
 
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "client/src"),
-      "@shared": path.resolve(__dirname, "shared"),
-      "@assets": path.resolve(__dirname, "attached_assets"),
+      "@": path.resolve(__dirname, "client/src"), // ✅ Frontend src folder
+      "@shared": path.resolve(__dirname, "shared"), // ✅ Shared utils/types
+      "@assets": path.resolve(__dirname, "attached_assets"), // ✅ Optional global assets
     },
   },
 
-  root: path.resolve(__dirname, "client"),
-
   build: {
-    outDir: path.resolve(__dirname, "dist/public"),
+    outDir: path.resolve(__dirname, "dist/public"), // ✅ Output for production build
     emptyOutDir: true,
   },
 
   server: {
-    host: "0.0.0.0",   // ✅ Access from LAN / mobile
-    port: 5173,        // ✅ Frontend port
+    host: "0.0.0.0", // ✅ Allow LAN/mobile access
+    port: 5173,
     fs: {
       strict: true,
       deny: ["**/.*"], // 🚫 Prevent serving hidden files
     },
     proxy: {
       "/api": {
-        target: "http://localhost:5050", // ✅ Your Express backend
+        target: "http://localhost:5050", // ✅ Express backend
         changeOrigin: true,
         secure: false,
       },
     },
   },
 
-  // ✅ Optional: cleaner build logging
   logLevel: "info",
 });

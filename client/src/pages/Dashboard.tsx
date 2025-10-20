@@ -186,7 +186,7 @@ export default function Dashboard() {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 md:px-8 mt-[-0.5rem]">
+      <div className="flex-1 overflow-y-auto px-2 py-6 md:px-8 mt-[-0.5rem]">
         {activeTab === "Stats" && (
           <StatsDashboard
             flights={flights}

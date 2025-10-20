@@ -1,10 +1,8 @@
-import { defineConfig } from "drizzle-kit";
-
-export default defineConfig({
-  schema: "./shared/schema.ts", // ✅ FIXED PATH
+export default {
+  schema: "./shared/schema.ts",
   out: "./drizzle",
-  dialect: "postgresql", // or "sqlite" if using SQLite
+  dialect: "postgresql",
   dbCredentials: {
     url: process.env.DATABASE_URL!,
   },
-});
+};
