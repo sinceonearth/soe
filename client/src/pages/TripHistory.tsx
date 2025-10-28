@@ -2,23 +2,33 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import type { Flight } from "@shared/schema";
-import { Ruler, Clock } from "lucide-react";
+import { Ruler, Clock, Plus, ArrowLeft } from "lucide-react";
+import ManualAddFlight from "@/components/ManualAddFlight";
 
 interface TripHistoryProps {
   flights: Flight[];
+  userId: string;
+  onRefresh?: () => void;
 }
 
 const PAGE_SIZE = 12;
 
-// Haversine formula to calculate distance in km
+// Calculate actual flight distance in km (with multiplier for air corridors)
 const getDistance = (
   lat1?: number | null,
   lon1?: number | null,
   lat2?: number | null,
-  lon2?: number | null
+  lon2?: number | null,
+  storedDistance?: number | null
 ): number | null => {
+  // Use stored distance if available
+  if (storedDistance != null && storedDistance > 0) {
+    return storedDistance;
+  }
+  
   if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
 
+  // Haversine formula for great circle distance
   const toRad = (x: number) => (x * Math.PI) / 180;
   const R = 6371; // Earth's radius in km
   const dLat = toRad(lat2 - lat1);
@@ -28,7 +38,10 @@ const getDistance = (
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+  const greatCircleDist = R * c;
+  
+  // Apply 1.15x multiplier for actual flight path (air corridors, weather routing, etc.)
+  return greatCircleDist * 1.15;
 };
 
 // Format duration in "Xh Ym"
@@ -38,10 +51,16 @@ const formatDuration = (hours: number) => {
   return `${h}h ${m}m`;
 };
 
-export default function TripHistory({ flights }: TripHistoryProps) {
+export default function TripHistory({ flights, userId, onRefresh }: TripHistoryProps) {
+  const [showAddForm, setShowAddForm] = useState(false);
   const [selectedPastTab, setSelectedPastTab] = useState<string>("All");
   const [visiblePastCount, setVisiblePastCount] = useState(PAGE_SIZE);
   const [visibleUpcomingCount, setVisibleUpcomingCount] = useState(PAGE_SIZE);
+
+  const handleFlightAdded = () => {
+    setShowAddForm(false);
+    if (onRefresh) onRefresh();
+  };
 
   const [upcomingFlightsState, setUpcomingFlightsState] = useState<Flight[]>([]);
   const [pastFlightsState, setPastFlightsState] = useState<Flight[]>([]);
@@ -137,11 +156,25 @@ export default function TripHistory({ flights }: TripHistoryProps) {
       f.departure_latitude,
       f.departure_longitude,
       f.arrival_latitude,
-      f.arrival_longitude
+      f.arrival_longitude,
+      f.distance
     );
 
-    // Estimated duration in hours based on 800 km/h
-    const durationHours = distanceKm != null ? distanceKm / 800 : null;
+    // Calculate duration from stored value or estimate
+    let durationHours: number | null = null;
+    if (f.duration) {
+      const durationStr = String(f.duration);
+      if (durationStr.includes('h') || durationStr.includes('m')) {
+        const hours = durationStr.match(/(\d+)h/);
+        const mins = durationStr.match(/(\d+)m/);
+        durationHours = (hours ? parseInt(hours[1]) : 0) + (mins ? parseInt(mins[1]) / 60 : 0);
+      } else {
+        durationHours = parseFloat(durationStr) / 60;
+      }
+    } else if (distanceKm != null) {
+      // Estimate: actual flight time = distance / 850 km/h + 30min for taxi/climb/descent
+      durationHours = (distanceKm / 850) + 0.5;
+    }
 
     return (
       <div className="p-4 bg-neutral-900 border border-gray-700 rounded-xl hover:shadow-lg transition-shadow flex justify-between">
@@ -188,8 +221,35 @@ export default function TripHistory({ flights }: TripHistoryProps) {
     );
   };
 
+  // Show full-page Add Flight form
+  if (showAddForm) {
+    return (
+      <div className="min-h-screen w-full bg-black text-white flex flex-col relative px-4 md:px-8 py-6">
+        <button
+          onClick={() => setShowAddForm(false)}
+          className="flex items-center gap-2 text-white hover:text-green-400 transition-colors mb-6"
+        >
+          <ArrowLeft size={20} />
+          <span className="font-semibold">Back to Trips</span>
+        </button>
+        <ManualAddFlight userId={userId} onSuccess={handleFlightAdded} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full bg-black text-white flex flex-col relative px-4 md:px-8">
+      {/* Add Flight Button */}
+      <div className="mb-6">
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="px-6 py-2 bg-green-500 hover:bg-green-600 text-black font-semibold rounded-full transition-all flex items-center gap-2"
+        >
+          <Plus size={20} />
+          Add Flight
+        </button>
+      </div>
+
       {/* Upcoming Flights */}
       <div className="mb-6">
         <div className="text-green-400 text-xl font-semibold mb-3">

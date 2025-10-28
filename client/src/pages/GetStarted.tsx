@@ -132,16 +132,6 @@ export default function GetStarted() {
         >
           I already have an account
         </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex-1 h-px bg-gray-300" />
-          <div className="text-xs text-gray-500">OR</div>
-          <div className="flex-1 h-px bg-gray-300" />
-        </div>
-
-        <button className="w-full border border-green-600 text-black text-md font-medium py-4 rounded-full flex items-center justify-center gap-2">
-          Continue as Guest
-        </button>
       </motion.div>
     </motion.div>
   );

@@ -17,7 +17,8 @@ import GetStarted from "@/pages/GetStarted";
 import Register from "@/pages/Register";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
-import TripHistory from "@/pages/TripHistory";
+import TripsPageWrapper from "@/pages/TripsPageWrapper";
+import StayInsPageWrapper from "@/pages/StayInsPageWrapper";
 import Admin from "@/pages/Admin";
 import NotFound from "@/pages/not-found";
 
@@ -47,7 +48,8 @@ function Router({ isAuthenticated }: { isAuthenticated: boolean }) {
         <>
           <Route path="/" component={Dashboard} />
           <Route path="/dashboard" component={Dashboard} />
-          <Route path="/trips" component={TripHistory} />
+          <Route path="/trips" component={TripsPageWrapper} />
+          <Route path="/stayins" component={StayInsPageWrapper} />
           <Route path="/admin" component={Admin} />
         </>
       )}
@@ -82,12 +84,8 @@ function AppContent() {
   }
 
   // 🧑‍🚀 Authenticated view
-  // Hide global header on specific pages (like Admin/Trips)
-  const hideGlobalUI = /^\/(admin|trips)/.test(location);
-
   return (
     <div className="min-h-screen bg-background pb-24 md:pb-0">
-      {!hideGlobalUI && <Header />} {/* ✅ Hide header on admin/trips */}
       <main className="flex flex-col items-center w-full">
         <Router isAuthenticated={true} />
       </main>

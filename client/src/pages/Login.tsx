@@ -20,10 +20,7 @@ const FaceAlien = createLucideIcon("FaceAlien", faceAlien);
 type LoginUser = z.infer<typeof loginUserSchema>;
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  (typeof window !== "undefined" && window.location.hostname === "localhost"
-    ? "http://localhost:5050"
-    : `http://${window?.location.hostname || "localhost"}:5050`);
+  import.meta.env.VITE_API_BASE_URL || "";
 
 export default function Login() {
   const [, setLocation] = useLocation();

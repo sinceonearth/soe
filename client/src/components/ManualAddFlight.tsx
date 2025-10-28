@@ -29,9 +29,10 @@ interface Airport {
 
 interface ManualAddFlightProps {
   userId: string;
+  onSuccess?: () => void;
 }
 
-export default function ManualAddFlight({ userId }: ManualAddFlightProps) {
+export default function ManualAddFlight({ userId, onSuccess }: ManualAddFlightProps) {
   const [airline, setAirline] = useState("");
   const [airlineCode, setAirlineCode] = useState("");
   const [flightNumber, setFlightNumber] = useState("");
@@ -270,8 +271,10 @@ export default function ManualAddFlight({ userId }: ManualAddFlightProps) {
         body: JSON.stringify(body),
       });
 
-      if (res.ok) handleReset();
-      else {
+      if (res.ok) {
+        handleReset();
+        if (onSuccess) onSuccess();
+      } else {
         const err = await res.json();
         alert("Error: " + (err.message || "Unknown error"));
       }

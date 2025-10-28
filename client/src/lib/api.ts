@@ -2,7 +2,7 @@
 
 // 🌐 Automatically handle localhost or network IP
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://192.168.29.116:5050";
+  import.meta.env.VITE_API_BASE_URL || "";
 
 /**
  * Reusable API request helper

@@ -56,7 +56,7 @@ export default function Register() {
     onSuccess: async () => {
       toast({ title: "Account created!", description: "Welcome to ...sinceonearth 👽" });
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      setLocation("/login");
+      setTimeout(() => setLocation("/dashboard"), 800);
     },
     onError: (err: any) => {
       setError(err.message || "Registration failed");

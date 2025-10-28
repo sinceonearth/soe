@@ -4,12 +4,10 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import Globe from "react-globe.gl";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { Header } from "@/components/Header";
 import { StatsDashboard } from "@/components/StatsDashboard";
-import TripHistory from "@/pages/TripHistory";
-import Admin from "@/pages/Admin";
 import { apiRequest } from "@/lib/queryClient";
 import type { Flight } from "@shared/schema";
-import ManualAddFlight from "@/components/ManualAddFlight";
 
 const countryCoordinates: Record<string, { lat: number; lon: number }> = {
   India: { lat: 20.5937, lon: 78.9629 },
@@ -36,9 +34,8 @@ export default function Dashboard() {
   const globeRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 400, height: 400 });
-  const [activeTab, setActiveTab] = useState<"Stats" | "Trips" | "AddFlight" | "Admin">("Stats");
 
-  const { data: flights = [], refetch } = useQuery<Flight[]>({
+  const { data: flights = [], refetch: refetchFlights } = useQuery<Flight[]>({
     queryKey: ["user-flights", token],
     enabled: !!token,
     queryFn: async () => {
@@ -49,18 +46,26 @@ export default function Dashboard() {
     },
   });
 
+  const { data: stayins = [], refetch: refetchStayins } = useQuery<any[]>({
+    queryKey: ["user-stayins", token],
+    enabled: !!token,
+    queryFn: async () => {
+      if (!token) return [];
+      const res = await apiRequest("GET", "/api/stayins", null, token);
+      if (!res.ok) throw new Error("Failed to fetch stay ins");
+      return res.json();
+    },
+  });
+
   useEffect(() => {
-    if (activeTab === "Stats") {
-      refetch();
-      if (globeRef.current && user) {
-        const coords = getCoords(user.country);
-        globeRef.current.pointOfView(
-          { lat: coords.lat, lng: coords.lon, altitude: 2.0 },
-          1500
-        );
-      }
+    if (globeRef.current && user) {
+      const coords = getCoords(user.country);
+      globeRef.current.pointOfView(
+        { lat: coords.lat, lng: coords.lon, altitude: 2.0 },
+        1500
+      );
     }
-  }, [activeTab, refetch, user]);
+  }, [user]);
 
   useEffect(() => {
     const update = () => {
@@ -112,99 +117,55 @@ export default function Dashboard() {
       });
   }, [flights]);
 
-  const tabs: { id: "Stats" | "Trips" | "AddFlight" | "Admin"; label: string }[] = [
-    { id: "Stats", label: "Stats" },
-    { id: "Trips", label: "Trips" },
-    { id: "AddFlight", label: "Add Flight" },
-  ];
-
-  if (user?.is_admin) tabs.push({ id: "Admin", label: "Admin" });
-
   return (
     <div className="min-h-screen w-screen bg-black text-white flex flex-col">
-      {/* Globe */}
-      <div ref={containerRef} className="w-full h-[60vh] relative z-10">
-        <Globe
-          ref={globeRef}
-          width={dimensions.width}
-          height={dimensions.height}
-          globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-          backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-          arcsData={arcsData}
-          arcStartLat="startLat"
-          arcStartLng="startLng"
-          arcEndLat="endLat"
-          arcEndLng="endLng"
-          arcColor={() => "#22c55e"}
-          arcAltitude={(d: any) => d.altitude}
-          arcStroke={0.4}
-          atmosphereColor="#22c55e"
-          atmosphereAltitude={0.25}
-          htmlElementsData={arcsData.flatMap((arc) => [
-            { lat: arc.startLat, lng: arc.startLng, label: arc.startLabel },
-            { lat: arc.endLat, lng: arc.endLng, label: arc.endLabel },
-          ])}
-          htmlElement={(d: any) => {
-            const el = document.createElement("div");
-            el.innerText = d.label;
-            el.style.color = "white";
-            el.style.fontSize = "9px";
-            el.style.fontWeight = "bold";
-            el.style.textShadow = "0 0 2px black";
-            el.style.transform = "translateY(-8px)";
-            el.style.borderRadius = "50%";
-            el.style.width = "6px";
-            el.style.height = "6px";
-            el.style.background = "white";
-            el.style.display = "flex";
-            el.style.justifyContent = "center";
-            el.style.alignItems = "center";
-            el.style.padding = "2px";
-            return el;
-          }}
-        />
-      </div>
+      {/* Header with Menu */}
+      <Header />
+      
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col pt-16 overflow-hidden">
+        {/* Globe */}
+        <div ref={containerRef} className="w-full h-[60vh] relative z-10">
+          <Globe
+            ref={globeRef}
+            width={dimensions.width}
+            height={dimensions.height}
+            globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+            backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+            arcsData={arcsData}
+            arcStartLat="startLat"
+            arcStartLng="startLng"
+            arcEndLat="endLat"
+            arcEndLng="endLng"
+            arcColor={() => "white"}
+            arcAltitude={(d: any) => d.altitude}
+            arcStroke={0.4}
+            atmosphereColor="#22c55e"
+            atmosphereAltitude={0.25}
+            htmlElementsData={arcsData.flatMap((arc) => [
+              { lat: arc.startLat, lng: arc.startLng },
+              { lat: arc.endLat, lng: arc.endLng },
+            ])}
+            htmlElement={() => {
+              const el = document.createElement("div");
+              el.style.borderRadius = "50%";
+              el.style.width = "6px";
+              el.style.height = "6px";
+              el.style.background = "#22c55e";
+              return el;
+            }}
+          />
+        </div>
 
-      {/* Tabs */}
-      <div className="flex justify-center gap-4 py-4 mt-[-2.2rem] z-20 relative">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`
-              px-4 py-1.5 rounded-full font-semibold text-base transition-all duration-200
-              ${
-                activeTab === tab.id
-                  ? "bg-green-500/20 text-green-400 border border-green-500/40 shadow-sm"
-                  : "text-white"
-              }
-            `}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab Content */}
-      <div className="flex-1 overflow-y-auto px-2 py-6 md:px-8 mt-[-0.5rem]">
-        {activeTab === "Stats" && (
+        {/* Stats Content */}
+        <div className="flex-1 overflow-y-auto px-6 py-6 md:px-8">
           <StatsDashboard
             flights={flights}
+            stayins={stayins}
             totalFlights={flights.length}
-            uniqueAirlines={new Set(flights.map((f) => f.airline_name?.trim() || "")).size}
+            totalStayins={new Set(stayins.map((s: any) => s.name)).size}
           />
-        )}
-
-        {activeTab === "Trips" && <TripHistory flights={flights} />}
-
-        {activeTab === "AddFlight" && user && (
-          <div className="space-y-6">
-            
-            <ManualAddFlight userId={user.id} />
-          </div>
-        )}
-
-        {activeTab === "Admin" && user?.is_admin && <Admin />}
+        </div>
       </div>
     </div>
   );

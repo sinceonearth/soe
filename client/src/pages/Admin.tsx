@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useState } from "react";
+import { Header } from "@/components/Header";
 
 interface User {
   id: string;
@@ -98,7 +99,10 @@ export default function Admin() {
   if (isError) return <p className="text-red-400">Failed to load users.</p>;
 
   return (
-    <div className="w-full flex flex-col gap-4">
+    <div className="min-h-screen w-screen bg-black text-white flex flex-col">
+      <Header />
+      <div className="flex-1 overflow-y-auto px-6 pt-20 pb-6 md:px-8">
+        <div className="w-full flex flex-col gap-4">
       {isMobile ? (
         <div className="space-y-4">
           {users?.map((user) => (
@@ -223,6 +227,8 @@ export default function Admin() {
           </CardContent>
         </Card>
       )}
+        </div>
+      </div>
     </div>
   );
 }
