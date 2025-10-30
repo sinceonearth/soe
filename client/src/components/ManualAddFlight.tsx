@@ -11,7 +11,6 @@ import { createLucideIcon, ScanText } from "lucide-react";
 import { faceAlien } from "@lucide/lab";
 import Tesseract from "tesseract.js";
 
-// Wrap icons
 const FaceAlienIcon = createLucideIcon("FaceAlienIcon", faceAlien);
 
 interface Airline {
@@ -165,76 +164,6 @@ export default function ManualAddFlight({ userId, onSuccess }: ManualAddFlightPr
     setStatus("scheduled");
   };
 
-  const handleBoardingPassUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsScanning(true);
-    setScanProgress(0);
-
-    try {
-      const imageUrl = URL.createObjectURL(file);
-      const result = await Tesseract.recognize(imageUrl, "eng", {
-        logger: (m) => {
-          if (m.status === "recognizing text" && m.progress) {
-            setScanProgress(Math.round(m.progress * 100));
-          }
-        },
-      });
-      parseBoardingPassText(result.data.text);
-    } catch (err) {
-      console.error("OCR error:", err);
-      alert("Couldn't read the boarding pass image. Try again.");
-    } finally {
-      setIsScanning(false);
-      setScanProgress(0);
-    }
-  };
-
-  const parseBoardingPassText = (text: string) => {
-    const clean = text.replace(/\s+/g, " ").toUpperCase();
-    const flightRegex = /([A-Z0-9]{2,3})[-\s]?(\d{2,5})/;
-    const iataRegex = /\b[A-Z]{3}\b/g;
-    const dateRegex = /(\d{2}\s?[A-Z]{3}|\d{4}-\d{2}-\d{2})/;
-
-    const flight = clean.match(flightRegex);
-    const airportsMatch = clean.match(iataRegex);
-    const dateMatch = clean.match(dateRegex);
-
-    if (flight) {
-      const [_, code, num] = flight;
-      setAirlineCode(code);
-      setFlightNumber(`${code}-${num}`);
-      setAirline(airlines.find((a) => a.airline_code === code)?.name || `Airline ${code}`);
-    }
-
-    if (airportsMatch && airportsMatch.length >= 2) {
-      setDepartureInput(airportsMatch[0]);
-      setArrivalInput(airportsMatch[1]);
-    }
-
-    if (dateMatch) setDate(convertToISODate(dateMatch[0]));
-
-    alert("✅ Boarding pass scanned and fields auto-filled!");
-  };
-
-  const convertToISODate = (raw: string) => {
-    try {
-      if (raw.includes("-")) return raw;
-      const months: Record<string, string> = {
-        JAN: "01", FEB: "02", MAR: "03", APR: "04", MAY: "05", JUN: "06",
-        JUL: "07", AUG: "08", SEP: "09", OCT: "10", NOV: "11", DEC: "12",
-      };
-      const [d, m] = raw.split(/\s/);
-      const day = d.padStart(2, "0");
-      const month = months[m];
-      const year = new Date().getFullYear();
-      return `${year}-${month}-${day}`;
-    } catch {
-      return "";
-    }
-  };
-
   const handleAddFlight = async () => {
     if (!date || !departureAirport || !arrivalAirport) {
       alert("Please fill all required fields.");
@@ -287,7 +216,9 @@ export default function ManualAddFlight({ userId, onSuccess }: ManualAddFlightPr
   };
 
   return (
-    <div className="max-w-xl mx-auto p-6 space-y-4 relative">
+    <div className="w-full mx-auto p-4 space-y-4 relative">
+
+
       {/* Scan Button */}
       <div className="flex justify-center">
         <Button
@@ -301,7 +232,7 @@ export default function ManualAddFlight({ userId, onSuccess }: ManualAddFlightPr
           type="file"
           accept="image/*"
           capture="environment"
-          onChange={handleBoardingPassUpload}
+          onChange={(e) => console.log(e.target.files)}
           className="hidden"
         />
       </div>
@@ -311,129 +242,87 @@ export default function ManualAddFlight({ userId, onSuccess }: ManualAddFlightPr
       <div className="text-center text-gray-400 mb-4">Enter details manually</div>
 
       {/* Airline */}
-      <div className="relative">
+      <div className="relative w-full">
         <Label className="text-green-400 mb-1">Airline</Label>
         <Input
           value={airline}
           onChange={(e) => setAirline(e.target.value)}
           placeholder="e.g. IndiGo"
-          className="bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400"
+          className="w-full bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400"
         />
-        {suggestedAirlines.length > 0 && (
-          <ul className="absolute z-50 bg-gray-800 text-green-100 w-full mt-1 border border-gray-600 rounded-lg max-h-48 overflow-auto shadow-lg">
-            {suggestedAirlines.map((a, i) => (
-              <li
-                key={i}
-                className="px-3 py-2 hover:bg-green-700 cursor-pointer"
-                onClick={() => handleAirlineSelect(a)}
-              >
-                {a.name} ({a.airline_code})
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
 
       {/* Flight Number */}
-      <div>
+      <div className="w-full">
         <Label className="text-green-400 mb-1">Flight Number</Label>
         <Input
           value={flightNumber}
           onChange={(e) => setFlightNumber(e.target.value)}
           placeholder="e.g. 6E-6289"
-          className="bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400"
+          className="w-full bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400"
         />
       </div>
 
       {/* Departure & Arrival */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="relative">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+        <div className="relative w-full">
           <Label className="text-green-400 mb-1">Departure Airport</Label>
           <Input
             value={departureInput}
             onChange={(e) => setDepartureInput(e.target.value)}
             placeholder="e.g. DEL"
-            className="bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400"
+            className="w-full bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400"
           />
-          {suggestedDepAirports.length > 0 && (
-            <ul className="absolute z-50 bg-gray-800 text-green-100 w-full mt-1 border border-gray-600 rounded-lg max-h-48 overflow-auto shadow-lg">
-              {suggestedDepAirports.map((a, i) => (
-                <li
-                  key={i}
-                  className="px-3 py-2 hover:bg-green-700 cursor-pointer"
-                  onClick={() => handleDepSelect(a)}
-                >
-                  {a.name} ({a.iata || a.ident})
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
-
-        <div className="relative">
+        <div className="relative w-full">
           <Label className="text-green-400 mb-1">Arrival Airport</Label>
           <Input
             value={arrivalInput}
             onChange={(e) => setArrivalInput(e.target.value)}
             placeholder="e.g. BOM"
-            className="bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400"
+            className="w-full bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400"
           />
-          {suggestedArrAirports.length > 0 && (
-            <ul className="absolute z-50 bg-gray-800 text-green-100 w-full mt-1 border border-gray-600 rounded-lg max-h-48 overflow-auto shadow-lg">
-              {suggestedArrAirports.map((a, i) => (
-                <li
-                  key={i}
-                  className="px-3 py-2 hover:bg-green-700 cursor-pointer"
-                  onClick={() => handleArrSelect(a)}
-                >
-                  {a.name} ({a.iata || a.ident})
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       </div>
 
       {/* Date & Time */}
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-col">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+        <div>
           <Label className="text-green-400 mb-1">Date</Label>
           <Input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400 w-48"
+            className="w-full bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400"
           />
         </div>
-        <div className="flex gap-4">
-          <div className="flex flex-col">
-            <Label className="text-green-400 mb-1">Departure Time</Label>
-            <Input
-              type="time"
-              value={departureTime}
-              onChange={(e) => setDepartureTime(e.target.value)}
-              className="bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400 w-32"
-            />
-          </div>
-          <div className="flex flex-col">
-            <Label className="text-green-400 mb-1">Arrival Time</Label>
-            <Input
-              type="time"
-              value={arrivalTime}
-              onChange={(e) => setArrivalTime(e.target.value)}
-              className="bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400 w-32"
-            />
-          </div>
+        <div>
+          <Label className="text-green-400 mb-1">Departure Time</Label>
+          <Input
+            type="time"
+            value={departureTime}
+            onChange={(e) => setDepartureTime(e.target.value)}
+            className="w-full bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400"
+          />
+        </div>
+        <div>
+          <Label className="text-green-400 mb-1">Arrival Time</Label>
+          <Input
+            type="time"
+            value={arrivalTime}
+            onChange={(e) => setArrivalTime(e.target.value)}
+            className="w-full bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400"
+          />
         </div>
       </div>
 
       {/* Status */}
-      <div>
+      <div className="w-full">
         <Label className="text-green-400 mb-1">Status</Label>
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="bg-gray-800 text-green-100 border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400 w-full p-2"
+          className="w-full p-2 bg-gray-800 text-green-100 border border-gray-600 rounded-lg focus:ring-2 focus:ring-green-400"
         >
           <option value="scheduled">Scheduled</option>
           <option value="landed">Landed</option>
@@ -449,7 +338,7 @@ export default function ManualAddFlight({ userId, onSuccess }: ManualAddFlightPr
           Add Flight
         </Button>
         <Button
-          className="bg-gray-700 border-green-600 hover:bg-gray-600 text-white rounded-full px-6 py-4 font-semibold flex-0"
+          className="bg-gray-700 border-green-600 hover:bg-gray-600 text-white rounded-full px-6 py-4 font-semibold"
           onClick={handleReset}
         >
           Reset

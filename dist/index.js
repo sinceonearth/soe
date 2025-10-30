@@ -9,6 +9,8 @@ import dotenv2 from "dotenv";
 import express2 from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
+import cors from "cors";
+import cookieParser from "cookie-parser";
 
 // server/routes.ts
 import { createServer } from "http";
@@ -31,11 +33,13 @@ __export(schema_exports, {
   insertAirportSchema: () => insertAirportSchema,
   insertFlightSchema: () => insertFlightSchema,
   insertStampSchema: () => insertStampSchema,
+  insertStayinSchema: () => insertStayinSchema,
   insertUserSchema: () => insertUserSchema,
   loginUserSchema: () => loginUserSchema,
   registerUserSchema: () => registerUserSchema,
   sessions: () => sessions,
   stamps: () => stamps,
+  stayins: () => stayins,
   users: () => users
 });
 import {
@@ -128,11 +132,13 @@ var airlines = pgTable("airlines", {
   id: uuid("id").defaultRandom().primaryKey(),
   airline_code: varchar("airline_code", { length: 3 }).unique().notNull(),
   airline_name: varchar("airline_name").notNull(),
-  country: varchar("country").notNull()
+  country: varchar("country").notNull(),
+  icao: varchar("icao"),
+  iata: varchar("iata")
 });
 var insertAirlineSchema = createInsertSchema(airlines);
 var airports = pgTable("airports", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: integer("id").primaryKey(),
   ident: varchar("ident").unique().notNull(),
   type: varchar("type"),
   name: varchar("name"),
@@ -157,6 +163,29 @@ var stamps = pgTable("stamps", {
 });
 var insertStampSchema = createInsertSchema(stamps).omit({
   id: true,
+  created_at: true
+});
+var stayins = pgTable("stayins", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  user_id: uuid("user_id").references(() => users.id).notNull(),
+  check_in: varchar("check_in").notNull(),
+  // Date string
+  check_out: varchar("check_out").notNull(),
+  // Date string
+  country: varchar("country").notNull(),
+  city: varchar("city").notNull(),
+  // Region/City (without Notion links)
+  name: varchar("name").notNull(),
+  // Hotel/Accommodation name
+  maps_pin: text("maps_pin"),
+  // Google Maps link
+  type: varchar("type").notNull().default("Hotel"),
+  // Hotel, Airbnb, Hostel, Motel
+  created_at: timestamp("created_at").defaultNow()
+});
+var insertStayinSchema = createInsertSchema(stayins).omit({
+  id: true,
+  user_id: true,
   created_at: true
 });
 
@@ -440,6 +469,14 @@ async function registerRoutes(app2) {
   });
   app2.get("/api/flights", requireAuth, async (req, res) => {
     try {
+      const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+      await db.update(flights).set({ status: "Landed" }).where(
+        and(
+          eq(flights.user_id, req.user.userId),
+          sql2`LOWER(${flights.status}) = 'scheduled'`,
+          sql2`${flights.date} < ${today}`
+        )
+      );
       const flightsList = await db.select().from(flights).where(eq(flights.user_id, req.user.userId)).orderBy(desc(flights.date));
       return res.json(flightsList);
     } catch (err) {
@@ -502,6 +539,41 @@ async function registerRoutes(app2) {
       return res.status(500).json({ message: "Failed to delete flight" });
     }
   });
+  app2.get("/api/stayins", requireAuth, async (req, res) => {
+    try {
+      const stayinsList = await db.select().from(stayins).where(eq(stayins.user_id, req.user.userId)).orderBy(desc(stayins.check_in));
+      return res.json(stayinsList);
+    } catch (err) {
+      console.error("\u274C Error fetching stay ins:", err);
+      return res.status(500).json({ message: "Failed to fetch stay ins" });
+    }
+  });
+  app2.post("/api/stayins", requireAuth, async (req, res) => {
+    try {
+      const body = req.body;
+      const userId = req.user.userId;
+      if (!body.name || !body.city || !body.country || !body.check_in || !body.check_out || !body.type) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      const newStayIn = {
+        id: crypto.randomUUID(),
+        user_id: userId,
+        name: body.name,
+        city: body.city,
+        country: body.country,
+        check_in: body.check_in,
+        check_out: body.check_out,
+        maps_pin: body.maps_pin || null,
+        type: body.type,
+        created_at: /* @__PURE__ */ new Date()
+      };
+      await db.insert(stayins).values(newStayIn);
+      return res.status(201).json({ message: "Stay in added successfully", stayin: newStayIn });
+    } catch (err) {
+      console.error("\u274C Error adding stay in:", err);
+      return res.status(500).json({ message: "Failed to add stay in" });
+    }
+  });
   app2.get("/api/flights/search", requireAuth, async (req, res) => {
     try {
       const { flight_number, airline_name, dep_iata, arr_iata, date } = req.query;
@@ -535,36 +607,30 @@ import { fileURLToPath } from "url";
 var __dirname = path.dirname(fileURLToPath(import.meta.url));
 var vite_config_default = defineConfig({
   root: path.resolve(__dirname, "client"),
-  // ✅ Define Vite's root first
+  // Client root
   plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "client/src"),
-      // ✅ Frontend src folder
       "@shared": path.resolve(__dirname, "shared"),
-      // ✅ Shared utils/types
       "@assets": path.resolve(__dirname, "attached_assets")
-      // ✅ Optional global assets
     }
   },
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
-    // ✅ Output for production build
     emptyOutDir: true
   },
   server: {
     host: "0.0.0.0",
-    // ✅ Allow LAN/mobile access
     port: 5173,
     fs: {
       strict: true,
       deny: ["**/.*"]
-      // 🚫 Prevent serving hidden files
     },
     proxy: {
       "/api": {
-        target: "http://localhost:5050",
-        // ✅ Express backend
+        target: "http://localhost:5000",
+        // Your Express server port
         changeOrigin: true,
         secure: false
       }
@@ -580,7 +646,7 @@ async function setupVite(app2, server) {
   const vite = await createViteServer({
     ...vite_config_default,
     configFile: false,
-    server: { middlewareMode: true, hmr: { server }, allowedHosts: true },
+    server: { middlewareMode: true, hmr: { server } },
     appType: "custom",
     customLogger: viteLogger
   });
@@ -604,41 +670,27 @@ async function setupVite(app2, server) {
 }
 
 // server/index.ts
-import cors from "cors";
-import cookieParser from "cookie-parser";
 dotenv2.config();
-process.env.NODE_ENV = process.env.NODE_ENV || "development";
+process.env.NODE_ENV ||= "development";
 console.log("\u{1F527} Loaded environment:", {
-  hasDatabaseUrl: !!process.env.DATABASE_URL,
-  hasSessionSecret: !!process.env.SESSION_SECRET,
+  hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+  hasSessionSecret: Boolean(process.env.SESSION_SECRET),
   nodeEnv: process.env.NODE_ENV
 });
 var app = express2();
 app.set("trust proxy", 1);
 app.use(express2.json());
 app.use(express2.urlencoded({ extended: false }));
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      // desktop dev
-      "http://192.168.29.116:5173",
-      // mobile dev
-      "http://localhost:5050"
-      // browser console
-    ],
-    credentials: true
-  })
-);
+app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
 app.use((req, res, next) => {
   const start = Date.now();
   const path3 = req.path;
-  let capturedJsonResponse = void 0;
-  const originalResJson = res.json;
-  res.json = function(bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
+  let capturedJsonResponse;
+  const originalJson = res.json.bind(res);
+  res.json = (body) => {
+    capturedJsonResponse = body;
+    return originalJson(body);
   };
   res.on("finish", () => {
     const duration = Date.now() - start;
@@ -652,16 +704,14 @@ app.use((req, res, next) => {
   next();
 });
 var PgStore = connectPg(session);
-var sessionStore = new PgStore({
-  conString: process.env.DATABASE_URL,
-  createTableIfMissing: false,
-  ttl: 7 * 24 * 60 * 60,
-  // 7 days
-  tableName: "sessions"
-});
 app.use(
   session({
-    store: sessionStore,
+    store: new PgStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: false,
+      ttl: 7 * 24 * 60 * 60,
+      tableName: "sessions"
+    }),
     secret: process.env.SESSION_SECRET,
     name: "sessionId",
     resave: false,
@@ -689,9 +739,13 @@ app.use(
     console.log("\u{1F680} Starting Vite in middleware mode...");
     await setupVite(app, server);
   } else {
-    console.log("\u{1F4E6} Skipping serveStatic \u2014 dev mode only");
+    console.log("\u{1F4E6} Production: serving static files");
+    app.use(express2.static("dist/public"));
+    app.get("*", (_req, res) => {
+      res.sendFile("index.html", { root: "dist/public" });
+    });
   }
-  const port = parseInt(process.env.PORT || "5050", 10);
+  const port = Number(process.env.PORT || 5e3);
   server.listen(port, "0.0.0.0", () => {
     console.log(`\u2705 Server running on http://0.0.0.0:${port}`);
   });

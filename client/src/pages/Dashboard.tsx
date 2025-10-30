@@ -61,7 +61,7 @@ export default function Dashboard() {
     if (globeRef.current && user) {
       const coords = getCoords(user.country);
       globeRef.current.pointOfView(
-        { lat: coords.lat, lng: coords.lon, altitude: 2.0 },
+        { lat: coords.lat, lng: coords.lon, altitude: 1.8 },
         1500
       );
     }
@@ -123,9 +123,9 @@ export default function Dashboard() {
       <Header />
       
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col pt-16 overflow-hidden">
+      <div className="flex-1 flex flex-col pt-12 overflow-hidden">
         {/* Globe */}
-        <div ref={containerRef} className="w-full h-[60vh] relative z-10">
+        <div ref={containerRef} className="w-full h-[55vh] relative z-10">
           <Globe
             ref={globeRef}
             width={dimensions.width}
@@ -158,7 +158,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 md:px-8">
+        <div className="flex-1 overflow-y-auto px-3 py-3 md:px-1">
           <StatsDashboard
             flights={flights}
             stayins={stayins}

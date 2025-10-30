@@ -133,6 +133,8 @@ export const airlines = pgTable("airlines", {
   airline_code: varchar("airline_code", { length: 3 }).unique().notNull(),
   airline_name: varchar("airline_name").notNull(),
   country: varchar("country").notNull(),
+  icao: varchar("icao"),
+  iata: varchar("iata"),
 });
 
 export const insertAirlineSchema = createInsertSchema(airlines);
@@ -143,7 +145,7 @@ export type InsertAirline = z.infer<typeof insertAirlineSchema>;
    🌍 Airports Table
    ======================================================= */
 export const airports = pgTable("airports", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: integer("id").primaryKey(),
   ident: varchar("ident").unique().notNull(),
   type: varchar("type"),
   name: varchar("name"),
@@ -181,3 +183,31 @@ export const insertStampSchema = createInsertSchema(stamps).omit({
 
 export type Stamp = typeof stamps.$inferSelect;
 export type InsertStamp = z.infer<typeof insertStampSchema>;
+
+/* =======================================================
+   🏨 Stay Ins Table
+   ======================================================= */
+export const stayins = pgTable("stayins", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  user_id: uuid("user_id").references(() => users.id).notNull(),
+  
+  check_in: varchar("check_in").notNull(), // Date string
+  check_out: varchar("check_out").notNull(), // Date string
+  
+  country: varchar("country").notNull(),
+  city: varchar("city").notNull(), // Region/City (without Notion links)
+  name: varchar("name").notNull(), // Hotel/Accommodation name
+  maps_pin: text("maps_pin"), // Google Maps link
+  type: varchar("type").notNull().default("Hotel"), // Hotel, Airbnb, Hostel, Motel
+  
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+export const insertStayinSchema = createInsertSchema(stayins).omit({
+  id: true,
+  user_id: true,
+  created_at: true,
+});
+
+export type Stayin = typeof stayins.$inferSelect;
+export type InsertStayin = z.infer<typeof insertStayinSchema>;

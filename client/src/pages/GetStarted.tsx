@@ -7,6 +7,7 @@ import {
   Globe,
   Plane,
   Ruler,
+  MapPin,
   Building2,
   TowerControl,
   Apple,
@@ -15,7 +16,10 @@ import {
 const slides = [
   {
     id: 1,
-    title: "Track Your Adventures",
+    title: (
+      <>
+        Track your <br /> Adventures      </>
+    ),
     text: "Log every journey you take across cities, countries, and continents — with an interactive world view.",
   },
   {
@@ -29,7 +33,11 @@ const slides = [
   },
   {
     id: 3,
-    title: "Visualize Your Journey",
+    title: (
+      <>
+        Visualize Your <br /> Journey
+      </>
+    ),
     text: "See your total flights, kilometers, and destinations all in one place like your own cosmic travel log.",
   },
 ];
@@ -37,9 +45,7 @@ const slides = [
 const icons = [
   { icon: Globe, color: "#a855f7" },
   { icon: Plane, color: "#22c55e" },
-  { icon: Ruler, color: "#eab308" },
-  { icon: TowerControl, color: "#6366f1" },
-  { icon: Building2, color: "#38bdf8" },
+  { icon: MapPin, color: "#ec4899" },
 ];
 
 export default function GetStarted() {
@@ -50,11 +56,11 @@ export default function GetStarted() {
   useEffect(() => {
     const textInterval = setInterval(() => {
       setIndex((prev) => (prev + 1) % slides.length);
-    }, 4500);
+    }, 3500);
 
     const iconInterval = setInterval(() => {
       setIconIndex((prev) => (prev + 1) % icons.length);
-    }, 1000);
+    }, 3500);
 
     return () => {
       clearInterval(textInterval);
@@ -68,7 +74,7 @@ export default function GetStarted() {
 
   return (
     <motion.div
-      className="min-h-screen w-full flex flex-col items-center justify-between bg-black text-white px-6 pt-24 pb-10 relative"
+      className="min-h-screen w-full flex flex-col items-center justify-between bg-black text-white px-6 pt-40 pb-10 relative"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -77,25 +83,9 @@ export default function GetStarted() {
           '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif',
       }}
     >
-      {/* Slide Text */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={slide.id}
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -50 }}
-          transition={{ duration: 0.8 }}
-          className="text-center max-w-md mb-10"
-        >
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-br from-green-400 to-green-600 bg-clip-text text-transparent whitespace-pre-line">
-            {slide.title}
-          </h1>
-          <p className="text-neutral-400 text-lg leading-relaxed">{slide.text}</p>
-        </motion.div>
-      </AnimatePresence>
 
       {/* Icon Container with fixed height to prevent jumping */}
-      <div className="mb-16 h-36 flex items-center justify-center">
+      <div className="h-30 flex items-center justify-center">
         <AnimatePresence mode="wait">
           <motion.div
             key={iconIndex}
@@ -105,12 +95,29 @@ export default function GetStarted() {
             transition={{ duration: 1 }}
           >
             <CurrentIcon
-              className="w-28 h-28 md:w-28 md:h-28"
+              className="w-40 h-40"
               style={{ color: iconColor }}
             />
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Slide Text */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={slide.id}
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -50 }}
+          transition={{ duration: 0.8 }}
+          className="text-center max-w-md"
+        >
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-br from-green-400 to-green-600 bg-clip-text text-transparent whitespace-pre-line">
+            {slide.title}
+          </h1>
+          <p className="text-neutral-400 text-lg leading-relaxed">{slide.text}</p>
+        </motion.div>
+      </AnimatePresence>
 
       {/* Bottom Card */}
       <motion.div

@@ -6,38 +6,26 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  root: path.resolve(__dirname, "client"), // ✅ Define Vite's root first
-
+  root: path.resolve(__dirname, "client"),
+  publicDir: path.resolve(__dirname, "client/public"), // (optional, for clarity)
   plugins: [react()],
-
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "client/src"), // ✅ Frontend src folder
-      "@shared": path.resolve(__dirname, "shared"), // ✅ Shared utils/types
-      "@assets": path.resolve(__dirname, "attached_assets"), // ✅ Optional global assets
+      "@": path.resolve(__dirname, "client/src"),
+      "@shared": path.resolve(__dirname, "shared"),
+      "@assets": path.resolve(__dirname, "attached_assets"),
     },
   },
-
   build: {
-    outDir: path.resolve(__dirname, "dist/public"), // ✅ Output for production build
+    outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
   },
-
   server: {
-    host: "0.0.0.0", // ✅ Allow LAN/mobile access
+    host: "0.0.0.0",
     port: 5173,
-    fs: {
-      strict: true,
-      deny: ["**/.*"], // 🚫 Prevent serving hidden files
-    },
     proxy: {
-      "/api": {
-        target: "http://localhost:5050", // ✅ Express backend
-        changeOrigin: true,
-        secure: false,
-      },
+      "/api": "http://localhost:5000",
     },
   },
-
   logLevel: "info",
 });

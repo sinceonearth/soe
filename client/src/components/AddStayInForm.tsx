@@ -35,7 +35,11 @@ export default function AddStayInForm({
 
     try {
       const token = localStorage.getItem("token");
-      if (!token) throw new Error("Authentication required");
+      if (!token) {
+        setError("Authentication required");
+        setLoading(false);
+        return;
+      }
 
       const response = await fetch("/api/stayins", {
         method: "POST",
@@ -62,7 +66,7 @@ export default function AddStayInForm({
         type: "HOTEL",
       });
 
-      setIsOpen(false);
+      if (!alwaysOpen) setIsOpen(false);
       onSuccess?.();
     } catch (err: any) {
       setError(err.message || "Failed to add stay in");
@@ -74,7 +78,7 @@ export default function AddStayInForm({
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   return (
@@ -89,7 +93,9 @@ export default function AddStayInForm({
       ) : (
         <div
           className={`${
-            alwaysOpen ? "w-full" : "bg-neutral-900 border border-gray-700 rounded-xl p-6 max-w-2xl"
+            alwaysOpen
+              ? "w-full"
+              : "bg-neutral-900 border border-gray-700 rounded-xl p-6 max-w-2xl"
           }`}
         >
           {/* Header */}
@@ -114,7 +120,7 @@ export default function AddStayInForm({
             </div>
           )}
 
-          {/* Error message */}
+          {/* Error Alert */}
           {error && (
             <div className="bg-red-500/20 border border-red-500/40 text-red-400 px-4 py-2 rounded-lg mb-4">
               {error}
@@ -123,10 +129,11 @@ export default function AddStayInForm({
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Input Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Accommodation Name */}
+              {/* Name */}
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-1 block">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Accommodation Name *
                 </label>
                 <input
@@ -135,14 +142,14 @@ export default function AddStayInForm({
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 bg-neutral-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-sky-500"
                   placeholder="e.g., Hilton Garden Inn"
+                  className="w-full px-3 py-2 bg-neutral-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-sky-500"
                 />
               </div>
 
               {/* Type */}
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-1 block">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Type *
                 </label>
                 <select
@@ -161,7 +168,7 @@ export default function AddStayInForm({
 
               {/* City */}
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-1 block">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   City *
                 </label>
                 <input
@@ -170,14 +177,14 @@ export default function AddStayInForm({
                   value={formData.city}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 bg-neutral-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-sky-500"
                   placeholder="e.g., New York"
+                  className="w-full px-3 py-2 bg-neutral-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-sky-500"
                 />
               </div>
 
               {/* Country */}
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-1 block">
+                <label className="block text-sm font-medium text-gray-300 mb-1">
                   Country *
                 </label>
                 <input
@@ -186,14 +193,14 @@ export default function AddStayInForm({
                   value={formData.country}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 bg-neutral-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-sky-500"
                   placeholder="e.g., USA"
+                  className="w-full px-3 py-2 bg-neutral-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-sky-500"
                 />
               </div>
 
               {/* Check-in */}
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-1 flex items-center gap-1">
+                <label className="flex items-center gap-1 text-sm font-medium text-gray-300 mb-1">
                   <Calendar size={14} />
                   Check-in Date *
                 </label>
@@ -209,7 +216,7 @@ export default function AddStayInForm({
 
               {/* Check-out */}
               <div>
-                <label className="text-sm font-medium text-gray-300 mb-1 flex items-center gap-1">
+                <label className="flex items-center gap-1 text-sm font-medium text-gray-300 mb-1">
                   <Calendar size={14} />
                   Check-out Date *
                 </label>
@@ -226,7 +233,7 @@ export default function AddStayInForm({
 
             {/* Google Maps Link */}
             <div>
-              <label className="text-sm font-medium text-gray-300 mb-1 flex items-center gap-1">
+              <label className="flex items-center gap-1 text-sm font-medium text-gray-300 mb-1">
                 <MapPin size={14} />
                 Google Maps Link (optional)
               </label>

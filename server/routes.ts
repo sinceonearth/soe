@@ -6,7 +6,7 @@ import crypto from "crypto";
 
 import { db } from "./db";
 import { storage } from "./storage";
-import { flights, airports } from "@shared/schema";
+import { flights, airports, stayins } from "@shared/schema";
 import authRouter from "./auth";
 import { verifyToken } from "./jwt";
 
@@ -76,6 +76,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // --- List flights for logged-in user ---
   app.get("/api/flights", requireAuth, async (req: RequestWithUser, res) => {
     try {
+      // First, update flight statuses for past flights (excluding today)
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      await db
+        .update(flights)
+        .set({ status: "Landed" })
+        .where(
+          and(
+            eq(flights.user_id, req.user!.userId),
+            sql`LOWER(${flights.status}) = 'scheduled'`,
+            sql`${flights.date} < ${today}`
+          )
+        );
+      
+      // Fetch all flights
       const flightsList = await db
         .select()
         .from(flights)
@@ -155,6 +170,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error("❌ Error deleting flight:", err);
       return res.status(500).json({ message: "Failed to delete flight" });
+    }
+  });
+
+  // --- List stay ins for logged-in user ---
+  app.get("/api/stayins", requireAuth, async (req: RequestWithUser, res) => {
+    try {
+      const stayinsList = await db
+        .select()
+        .from(stayins)
+        .where(eq(stayins.user_id, req.user!.userId))
+        .orderBy(desc(stayins.check_in));
+      return res.json(stayinsList);
+    } catch (err) {
+      console.error("❌ Error fetching stay ins:", err);
+      return res.status(500).json({ message: "Failed to fetch stay ins" });
+    }
+  });
+
+  // --- Add stay in ---
+  app.post("/api/stayins", requireAuth, async (req: RequestWithUser, res) => {
+    try {
+      const body = req.body;
+      const userId = req.user!.userId;
+
+      if (!body.name || !body.city || !body.country || !body.check_in || !body.check_out || !body.type) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const newStayIn = {
+        id: crypto.randomUUID(),
+        user_id: userId,
+        name: body.name,
+        city: body.city,
+        country: body.country,
+        check_in: body.check_in,
+        check_out: body.check_out,
+        maps_pin: body.maps_pin || null,
+        type: body.type,
+        created_at: new Date(),
+      };
+
+      await db.insert(stayins).values(newStayIn);
+      return res.status(201).json({ message: "Stay in added successfully", stayin: newStayIn });
+    } catch (err) {
+      console.error("❌ Error adding stay in:", err);
+      return res.status(500).json({ message: "Failed to add stay in" });
     }
   });
 

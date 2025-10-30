@@ -1,10 +1,15 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
 import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
+
+// ✅ define __dirname manually for ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const viteLogger = createLogger();
 
@@ -12,7 +17,7 @@ export async function setupVite(app: express.Express, server: Server) {
   const vite = await createViteServer({
     ...viteConfig,
     configFile: false,
-    server: { middlewareMode: true, hmr: { server }, allowedHosts: true },
+    server: { middlewareMode: true, hmr: { server } },
     appType: "custom",
     customLogger: viteLogger,
   });
@@ -22,12 +27,14 @@ export async function setupVite(app: express.Express, server: Server) {
   app.use("*", async (req, res, next) => {
     try {
       const url = req.originalUrl;
-      const templatePath = path.resolve(process.cwd(), "client/index.html");
+      const templatePath = path.resolve(__dirname, "../client/index.html");
+
       let template = await fs.promises.readFile(templatePath, "utf-8");
       template = template.replace(
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`
       );
+
       const html = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(html);
     } catch (e) {
@@ -38,10 +45,12 @@ export async function setupVite(app: express.Express, server: Server) {
 }
 
 export function serveStatic(app: express.Express) {
-  const distPath = path.resolve(process.cwd(), "dist/public");
+  const distPath = path.resolve(__dirname, "../dist/public");
 
   if (!fs.existsSync(distPath)) {
-    throw new Error(`⚠️ Build folder not found: ${distPath}. Run \`npm run build\` first.`);
+    throw new Error(
+      `⚠️ Build folder not found: ${distPath}. Run \`npm run build\` first.`
+    );
   }
 
   app.use(express.static(distPath));
