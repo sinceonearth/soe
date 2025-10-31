@@ -1,33 +1,47 @@
 {
-  "include": ["client/src/**/*", "shared/**/*", "server/**/*"],
-  "exclude": ["node_modules", "build", "client/dist", "**/*.test.ts"],
+  "include": [
+    "client/src/**/*",
+    "shared/**/*",
+    "server/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    "client/dist",
+    "**/*.test.ts"
+  ],
   "compilerOptions": {
-    /* 🔧 Core settings */
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
-
-    /* ⚡ React + modern TS */
+    "lib": [
+      "ESNext",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "jsx": "react-jsx",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "strict": true,
-
-    /* 🧩 Paths + Aliases */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["client/src/*"],
-      "@shared/*": ["shared/*"]
+      "@/*": [
+        "client/src/*"
+      ],
+      "@shared/*": [
+        "shared/*"
+      ]
     },
-
-    /* 🚀 Build optimization */
     "noEmit": true,
     "incremental": true,
     "tsBuildInfoFile": "./node_modules/.tsbuildinfo",
-
-    /* 🧠 Type definitions */
-    "types": ["node", "vite/client", "react", "react-dom"]
-  }
+    "types": [
+      "node",
+      "vite/client",
+      "react",
+      "react-dom"
+    ]
+  },
+  "extends": "expo/tsconfig.base"
 }

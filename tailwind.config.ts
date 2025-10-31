@@ -11,9 +11,9 @@ const config: Config = {
   theme: {
     extend: {
       borderRadius: {
-        lg: '0.5625rem', // 9px
-        md: '0.375rem',  // 6px
-        sm: '0.1875rem', // 3px
+        lg: '0.5625rem',
+        md: '0.375rem',
+        sm: '0.1875rem',
       },
       colors: {
         background: 'hsl(var(--background) / <alpha-value>)',

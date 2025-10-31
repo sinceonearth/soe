@@ -19,8 +19,7 @@ import { queryClient, setAuthToken } from "@/lib/queryClient";
 const FaceAlien = createLucideIcon("FaceAlien", faceAlien);
 type LoginUser = z.infer<typeof loginUserSchema>;
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -68,12 +67,13 @@ export default function Login() {
 
   return (
     <motion.div
-      className="min-h-screen flex flex-col items-center justify-center p-4 bg-background font-sans"
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.6, ease: "easeInOut" }}
-    >
+  className="min-h-screen flex flex-col items-center justify-center p-4 bg-black text-white font-sans"
+  initial={{ opacity: 0, y: 15 }}
+  animate={{ opacity: 1, y: 0 }}
+  exit={{ opacity: 0, y: -10 }}
+  transition={{ duration: 0.6, ease: "easeInOut" }}
+>
+
       <div className="w-[320px] max-w-md space-y-6">
         {/* Alien Logo */}
         <div className="flex flex-col items-center mb-6 space-y-4">
@@ -92,7 +92,12 @@ export default function Login() {
 
         {/* Login Form */}
         <form
-          onSubmit={form.handleSubmit((data) => loginMutation.mutate(data))}
+          onSubmit={form.handleSubmit((data) =>
+            loginMutation.mutate({
+              email: data.email.trim().toLowerCase(),
+              password: data.password,
+            })
+          )}
           className="space-y-4"
         >
           {/* Email */}
@@ -100,6 +105,8 @@ export default function Login() {
             id="email"
             type="email"
             placeholder="Email"
+            autoCapitalize="none"
+            autoCorrect="off"
             className="w-full h-14 bg-black text-white border border-white focus:border-green-500 focus:ring focus:ring-green-600"
             {...form.register("email")}
           />
@@ -115,6 +122,8 @@ export default function Login() {
               id="password"
               type={showPassword ? "text" : "password"}
               placeholder="Password"
+              autoCapitalize="none"
+              autoCorrect="off"
               className="w-full h-14 bg-black text-white border border-white focus:border-green-500 focus:ring focus:ring-green-600 pr-10"
               {...form.register("password")}
             />
