@@ -17,7 +17,11 @@ export async function setupVite(app: express.Express, server: Server) {
   const vite = await createViteServer({
     ...viteConfig,
     configFile: false,
-    server: { middlewareMode: true, hmr: { server } },
+    server: { 
+      ...viteConfig.server,
+      middlewareMode: true, 
+      hmr: { server } 
+    },
     appType: "custom",
     customLogger: viteLogger,
   });

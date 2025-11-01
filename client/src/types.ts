@@ -5,7 +5,7 @@ export interface UIStamp {
   id: string;        // unique ID of the stamp (string)
   name: string;      // readable country name, e.g. "Japan"
   isoCode: string;   // ISO country code, e.g. "JP"
-  imageUrl: string;  // path to the image, e.g. "/stamps/jp.png"
+  travelDate?: string; // First visit date, e.g. "2024-10-15"
 }
 
 /* -------------------------------------------------------------------------- */

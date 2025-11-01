@@ -9,6 +9,7 @@ import { ToastProvider, ToastViewport } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { Header } from "@/components/Header";
+import { FooterNav } from "@/components/FooterNav";
 import { SplashScreen } from "@/components/SplashScreen";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -17,6 +18,7 @@ import GetStarted from "@/pages/GetStarted";
 import Register from "@/pages/Register";
 import Login from "@/pages/Login";
 import Dashboard from "@/pages/Dashboard";
+import Achievements from "@/pages/Achievements";
 import TripsPageWrapper from "@/pages/TripsPageWrapper";
 import StayInsPageWrapper from "@/pages/StayInsPageWrapper";
 import Admin from "@/pages/Admin";
@@ -48,6 +50,7 @@ function Router({ isAuthenticated }: { isAuthenticated: boolean }) {
         <>
           <Route path="/" component={Dashboard} />
           <Route path="/dashboard" component={Dashboard} />
+          <Route path="/achievements" component={Achievements} />
           <Route path="/trips" component={TripsPageWrapper} />
           <Route path="/stayins" component={StayInsPageWrapper} />
           <Route path="/admin" component={Admin} />
@@ -85,10 +88,11 @@ function AppContent() {
 
   // 🧑‍🚀 Authenticated view
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-0">
+    <div className="min-h-screen bg-background pb-20">
       <main className="flex flex-col items-center w-full">
         <Router isAuthenticated={true} />
       </main>
+      <FooterNav />
     </div>
   );
 }
@@ -97,7 +101,7 @@ function AppContent() {
    🚀 ROOT APP COMPONENT
    =============================== */
 export default function App() {
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), 1500);

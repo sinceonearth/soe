@@ -28,6 +28,23 @@ export const sessions = pgTable(
 );
 
 /* =======================================================
+   🎟️ Invite Codes Table
+   ======================================================= */
+export const inviteCodes = pgTable("invite_codes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  code: varchar("code", { length: 20 }).unique().notNull(),
+  created_by: uuid("created_by").references(() => users.id),
+  used_by: uuid("used_by").references(() => users.id),
+  max_uses: integer("max_uses").default(1),
+  current_uses: integer("current_uses").default(0),
+  is_active: boolean("is_active").default(true).notNull(),
+  expires_at: timestamp("expires_at"),
+  created_at: timestamp("created_at").defaultNow(),
+});
+
+export type InviteCode = typeof inviteCodes.$inferSelect;
+
+/* =======================================================
    👽 Users Table
    ======================================================= */
 export const users = pgTable("users", {
@@ -40,6 +57,8 @@ export const users = pgTable("users", {
   country: varchar("country").default("Other").notNull(), // ✅ always set
   profile_image_url: varchar("profile_image_url"),
   is_admin: boolean("is_admin").default(false).notNull(),
+  approved: boolean("approved").default(false).notNull(),
+  invite_code_used: varchar("invite_code_used"),
   created_at: timestamp("created_at").defaultNow(),
   updated_at: timestamp("updated_at").defaultNow(),
 });
@@ -69,6 +88,7 @@ export const registerUserSchema = z.object({
     .string()
     .regex(/^\d{2}$/, "Alien must be 2 digits (e.g. 01, 02, 10)")
     .optional(),
+  inviteCode: z.string().optional(),
 });
 
 export type RegisterUser = z.infer<typeof registerUserSchema>;
@@ -166,23 +186,6 @@ export const insertAirportSchema = createInsertSchema(airports);
 export type Airport = typeof airports.$inferSelect;
 export type InsertAirport = z.infer<typeof insertAirportSchema>;
 
-/* =======================================================
-   🏅 Stamps Table
-   ======================================================= */
-export const stamps = pgTable("stamps", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull(),
-  image_url: text("image_url").notNull(),
-  created_at: timestamp("created_at").defaultNow(),
-});
-
-export const insertStampSchema = createInsertSchema(stamps).omit({
-  id: true,
-  created_at: true,
-});
-
-export type Stamp = typeof stamps.$inferSelect;
-export type InsertStamp = z.infer<typeof insertStampSchema>;
 
 /* =======================================================
    🏨 Stay Ins Table

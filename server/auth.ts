@@ -12,12 +12,13 @@ const router = Router();
    =============================== */
 router.post("/register", async (req: Request, res: Response) => {
   try {
-    const { name, username, email, password, country } = req.body as {
+    const { name, username, email, password, country, inviteCode } = req.body as {
       name?: string;
       username?: string;
       email?: string;
       password?: string;
       country?: string | null;
+      inviteCode?: string;
     };
 
     if (!name || !username || !email || !password) {
@@ -29,6 +30,19 @@ router.post("/register", async (req: Request, res: Response) => {
       return res.status(409).json({ message: "Email already registered" });
     }
 
+    let approved = false;
+    let usedInviteCode = null;
+
+    if (inviteCode) {
+      const validCode = await storage.validateInviteCode(inviteCode);
+      if (validCode) {
+        approved = true;
+        usedInviteCode = inviteCode;
+      } else {
+        return res.status(400).json({ message: "Invalid or expired invite code" });
+      }
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
 
     const newUser = await storage.createUser({
@@ -37,7 +51,20 @@ router.post("/register", async (req: Request, res: Response) => {
       email,
       passwordHash,
       country: country || null,
+      approved,
+      inviteCodeUsed: usedInviteCode,
     });
+
+    if (usedInviteCode) {
+      await storage.markInviteCodeUsed(usedInviteCode, newUser.id);
+    }
+
+    if (!approved) {
+      return res.status(201).json({
+        message: "Registration successful. Your account is pending admin approval.",
+        requiresApproval: true,
+      });
+    }
 
     const token = createToken({
       userId: newUser.id,
@@ -45,7 +72,7 @@ router.post("/register", async (req: Request, res: Response) => {
       username: newUser.username,
       isAdmin: !!newUser.is_admin,
       alien: newUser.alien,
-      country: newUser.country, // <-- include country in JWT
+      country: newUser.country,
     });
 
     return res.status(201).json({
@@ -58,6 +85,7 @@ router.post("/register", async (req: Request, res: Response) => {
         country: newUser.country,
         alien: newUser.alien,
         is_admin: !!newUser.is_admin,
+        approved: newUser.approved,
       },
     });
   } catch (err) {
@@ -90,13 +118,20 @@ router.post("/login", async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
+    if (!user.approved) {
+      return res.status(403).json({ 
+        message: "Your account is pending admin approval. Please check back later.",
+        requiresApproval: true 
+      });
+    }
+
     const token = createToken({
       userId: user.id,
       email: user.email,
       username: user.username,
       isAdmin: !!user.is_admin,
       alien: user.alien,
-      country: user.country, // <-- include country in JWT
+      country: user.country,
     });
 
     return res.json({
@@ -109,6 +144,7 @@ router.post("/login", async (req: Request, res: Response) => {
         country: user.country,
         alien: user.alien,
         is_admin: !!user.is_admin,
+        approved: user.approved,
       },
     });
   } catch (err) {

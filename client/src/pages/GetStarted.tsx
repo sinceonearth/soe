@@ -74,7 +74,7 @@ export default function GetStarted() {
 
   return (
     <motion.div
-      className="min-h-screen w-full flex flex-col items-center justify-between bg-black text-white px-6 pt-40 pb-10 relative"
+      className="min-h-screen w-full flex flex-col items-center justify-between bg-gradient-to-b from-black via-gray-950 to-black text-white px-6 pt-24 pb-8 relative overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -83,20 +83,27 @@ export default function GetStarted() {
           '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif',
       }}
     >
+      {/* Animated background gradient orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      </div>
 
       {/* Icon Container with fixed height to prevent jumping */}
-      <div className="h-30 flex items-center justify-center">
+      <div className="h-44 flex items-center justify-center relative z-10 mb-8">
         <AnimatePresence mode="wait">
           <motion.div
             key={iconIndex}
-            initial={{ opacity: 0, scale: 0.6 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1 }}
+            initial={{ opacity: 0, scale: 0.6, rotate: -10 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            exit={{ opacity: 0, scale: 0.8, rotate: 10 }}
+            transition={{ duration: 0.8, ease: "easeInOut" }}
+            className="relative"
           >
+            <div className="absolute inset-0 blur-2xl opacity-50" style={{ background: iconColor }} />
             <CurrentIcon
-              className="w-40 h-40"
-              style={{ color: iconColor }}
+              className="w-32 h-32 relative z-10"
+              style={{ color: iconColor, strokeWidth: 1.5 }}
             />
           </motion.div>
         </AnimatePresence>
@@ -106,36 +113,50 @@ export default function GetStarted() {
       <AnimatePresence mode="wait">
         <motion.div
           key={slide.id}
-          initial={{ opacity: 0, y: 50 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -50 }}
-          transition={{ duration: 0.8 }}
-          className="text-center max-w-md"
+          exit={{ opacity: 0, y: -30 }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+          className="text-center max-w-lg px-4 mb-auto relative z-10"
         >
-          <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-br from-green-400 to-green-600 bg-clip-text text-transparent whitespace-pre-line">
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-br from-green-400 via-emerald-400 to-green-600 bg-clip-text text-transparent whitespace-pre-line leading-tight">
             {slide.title}
           </h1>
-          <p className="text-neutral-400 text-lg leading-relaxed">{slide.text}</p>
+          <p className="text-gray-300 text-lg md:text-xl leading-relaxed max-w-md mx-auto">
+            {slide.text}
+          </p>
         </motion.div>
       </AnimatePresence>
+
+      {/* Progress dots */}
+      <div className="flex gap-2 mt-12 mb-8 relative z-10">
+        {slides.map((_, idx) => (
+          <div
+            key={idx}
+            className={`h-2 rounded-full transition-all duration-300 ${
+              idx === index ? 'w-8 bg-green-500' : 'w-2 bg-gray-600'
+            }`}
+          />
+        ))}
+      </div>
 
       {/* Bottom Card */}
       <motion.div
         initial={{ opacity: 0, y: 40 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="w-full max-w-md bg-white text-black p-6 space-y-5 shadow-xl rounded-3xl border border-gray-200"
+        className="w-full max-w-md bg-white/95 backdrop-blur-xl text-black p-8 space-y-4 shadow-2xl rounded-3xl border border-gray-200 relative z-10"
       >
         <button
           onClick={() => navigate("/register")}
-          className="w-full bg-black text-white text-lg font-semibold py-4 rounded-full"
+          className="w-full bg-gradient-to-r from-black via-gray-900 to-black text-white text-lg font-semibold py-4 rounded-full hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
         >
           Create new account
         </button>
 
         <div
           onClick={() => navigate("/login")}
-          className="text-center text-sm underline text-gray-600 cursor-pointer select-none"
+          className="text-center text-sm text-gray-600 cursor-pointer select-none hover:text-gray-900 transition-colors py-2"
         >
           I already have an account
         </div>

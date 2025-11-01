@@ -12,6 +12,8 @@ export interface UserInput {
   name: string;
   country?: string | null;
   alien?: string;
+  approved?: boolean;
+  inviteCodeUsed?: string | null;
 }
 
 export interface FlightInput {
@@ -64,7 +66,7 @@ export const storage = {
     return result.rows;
   },
 
-  async createUser({ username, email, passwordHash, name, country }: UserInput) {
+  async createUser({ username, email, passwordHash, name, country, approved, inviteCodeUsed }: UserInput) {
     // Use a transaction to safely assign next alien
     const client = await pool.connect();
     try {
@@ -81,10 +83,10 @@ export const storage = {
       const alienStr = String(nextAlienNumber).padStart(2, "0");
 
       const insertRes = await client.query(
-        `INSERT INTO users (username, email, password_hash, name, country, alien)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO users (username, email, password_hash, name, country, alien, approved, invite_code_used)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [username, email, passwordHash, name, country || null, alienStr]
+        [username, email, passwordHash, name, country || null, alienStr, approved || false, inviteCodeUsed || null]
       );
 
       await client.query("COMMIT");
@@ -95,6 +97,98 @@ export const storage = {
     } finally {
       client.release();
     }
+  },
+
+  /* ===============================
+     🎟️ Invite Codes
+     =============================== */
+  async validateInviteCode(code: string) {
+    const result = await pool.query(
+      `SELECT * FROM invite_codes 
+       WHERE code = $1 
+       AND is_active = true 
+       AND (expires_at IS NULL OR expires_at > NOW())
+       AND current_uses < max_uses`,
+      [code]
+    );
+    return result.rows[0];
+  },
+
+  async markInviteCodeUsed(code: string, userId: string) {
+    await pool.query(
+      `UPDATE invite_codes 
+       SET current_uses = current_uses + 1, used_by = $2
+       WHERE code = $1`,
+      [code, userId]
+    );
+  },
+
+  async createInviteCode(createdBy: string, maxUses: number = 1, expiresAt?: Date) {
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
+    const result = await pool.query(
+      `INSERT INTO invite_codes (code, created_by, max_uses, expires_at)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [code, createdBy, maxUses, expiresAt || null]
+    );
+    return result.rows[0];
+  },
+
+  async getAllInviteCodes() {
+    const result = await pool.query(
+      `SELECT ic.*, u.username as created_by_username 
+       FROM invite_codes ic
+       LEFT JOIN users u ON ic.created_by = u.id
+       ORDER BY ic.created_at DESC`
+    );
+    return result.rows;
+  },
+
+  async getUsersByInviteCode(code: string) {
+    const result = await pool.query(
+      `SELECT id, username, name, email, created_at
+       FROM users
+       WHERE invite_code_used = $1
+       ORDER BY created_at DESC`,
+      [code]
+    );
+    return result.rows;
+  },
+
+  async deactivateInviteCode(codeId: string) {
+    const result = await pool.query(
+      `UPDATE invite_codes 
+       SET is_active = false
+       WHERE id = $1
+       RETURNING *`,
+      [codeId]
+    );
+    return result.rows[0];
+  },
+
+  async getPendingUsers() {
+    const result = await pool.query(
+      `SELECT id, username, email, name, country, alien, created_at
+       FROM users
+       WHERE approved = false
+       ORDER BY created_at DESC`
+    );
+    return result.rows;
+  },
+
+  async approveUser(userId: string) {
+    const result = await pool.query(
+      `UPDATE users 
+       SET approved = true
+       WHERE id = $1
+       RETURNING *`,
+      [userId]
+    );
+    return result.rows[0];
+  },
+
+  async rejectUser(userId: string) {
+    await pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
   },
 
   /* ===============================

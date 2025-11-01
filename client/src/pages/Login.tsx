@@ -67,17 +67,19 @@ export default function Login() {
 
   return (
     <motion.div
-  className="min-h-screen flex flex-col items-center justify-center p-4 bg-black text-white font-sans"
-  initial={{ opacity: 0, y: 15 }}
-  animate={{ opacity: 1, y: 0 }}
-  exit={{ opacity: 0, y: -10 }}
-  transition={{ duration: 0.6, ease: "easeInOut" }}
->
-
+      className="min-h-screen flex flex-col items-center justify-center p-4 bg-black text-white font-sans"
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.6, ease: "easeInOut" }}
+    >
       <div className="w-[320px] max-w-md space-y-6">
         {/* Alien Logo */}
         <div className="flex flex-col items-center mb-6 space-y-4">
-          <FaceAlien className="h-24 w-24 text-green-600 animate-pulse" />
+          <div className="relative">
+            <div className="absolute inset-0 blur-2xl opacity-50 bg-green-600" />
+            <FaceAlien className="h-24 w-24 text-green-600 animate-pulse relative z-10" />
+          </div>
         </div>
 
         {/* Headings */}
@@ -123,58 +125,62 @@ export default function Login() {
               type={showPassword ? "text" : "password"}
               placeholder="Password"
               autoCapitalize="none"
-              autoCorrect="off"
-              className="w-full h-14 bg-black text-white border border-white focus:border-green-500 focus:ring focus:ring-green-600 pr-10"
+              className="w-full h-14 bg-black text-white border border-white focus:border-green-500 focus:ring focus:ring-green-600 pr-12"
               {...form.register("password")}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white hover:text-green-500"
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
-            {form.formState.errors.password && (
-              <p className="text-sm text-destructive mt-1">
-                {form.formState.errors.password.message}
-              </p>
-            )}
           </div>
-
-          {error && (
-            <p className="text-sm text-destructive text-center">{error}</p>
+          {form.formState.errors.password && (
+            <p className="text-sm text-destructive mt-1">
+              {form.formState.errors.password.message}
+            </p>
           )}
 
-          {/* Submit Button */}
+          {/* Error message */}
+          {error && (
+            <div className="bg-red-900/30 border border-red-600 text-red-400 px-4 py-2 rounded">
+              {error}
+            </div>
+          )}
+
+          {/* Submit */}
           <Button
             type="submit"
-            className="w-full h-14 bg-green-100 text-black border-2 border-green-500 hover:bg-green-200 rounded-full"
             disabled={loginMutation.isPending}
+            className="w-full h-14 bg-white hover:bg-gray-100 text-green-600 border-2 border-green-600 font-semibold text-base rounded-full"
           >
             {loginMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <span className="flex items-center gap-2">
+                <Loader2 className="animate-spin" size={20} />
                 Logging in...
-              </>
+              </span>
             ) : (
-              "Log in"
+              "Login"
             )}
           </Button>
         </form>
 
-        {/* Footer */}
-        <div className="text-center text-sm space-y-4">
-          <div>
-            <span className="text-white">Don’t have an account? </span>
-            <Link href="/register">
-              <span className="text-green-600 hover:underline cursor-pointer">Sign up</span>
-            </Link>
-          </div>
+        {/* Register link */}
+        <div className="text-center text-sm text-gray-400">
+          Don't have an account?{" "}
+          <Link href="/register" className="text-green-500 hover:text-green-400 font-semibold">
+            Sign up
+          </Link>
+        </div>
 
-          <span className="inline-block px-4 py-2 rounded-full border border-green-600 text-green-600 font-semibold text-xs">
-            Created by व्रज पटेल
-          </span>
+        {/* Created by footer */}
+        <div className="text-center mt-6">
+          <div className="inline-block px-6 py-2 bg-neutral-900 border-2 border-green-600 rounded-full">
+            <p className="text-xs text-gray-400">
+              created by व्रज पटेल
+            </p>
+          </div>
         </div>
       </div>
     </motion.div>

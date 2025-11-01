@@ -10,7 +10,7 @@ import { Loader2, Eye, EyeOff, createLucideIcon } from "lucide-react";
 import { faceAlien } from "@lucide/lab";
 
 import { registerUserSchema, type RegisterUser } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, setAuthToken } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +34,7 @@ export default function Register() {
   const { toast } = useToast();
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showPendingApproval, setShowPendingApproval] = useState(false);
 
   const form = useForm<RegisterUser>({
     resolver: zodResolver(registerUserSchema),
@@ -53,10 +54,18 @@ export default function Register() {
       if (!res.ok) throw new Error(result?.message || "Registration failed");
       return result;
     },
-    onSuccess: async () => {
-      toast({ title: "Account created!", description: "Welcome to ...sinceonearth 👽" });
-      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      setTimeout(() => setLocation("/dashboard"), 800);
+    onSuccess: async (result) => {
+      if (result.requiresApproval) {
+        setShowPendingApproval(true);
+      } else {
+        // User registered with invite code - redirect to dashboard
+        if (result.token) {
+          setAuthToken(result.token);
+        }
+        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        toast({ title: "Welcome!", description: `Welcome to SinceOnEarth, ${result.user.username}! 👽` });
+        setTimeout(() => setLocation("/"), 800);
+      }
     },
     onError: (err: any) => {
       setError(err.message || "Registration failed");
@@ -67,6 +76,38 @@ export default function Register() {
     setError("");
     registerMutation.mutate(data);
   };
+
+  // Show pending approval page
+  if (showPendingApproval) {
+    return (
+      <motion.div
+        className="min-h-screen flex flex-col items-center justify-center p-4 bg-black text-white font-sans"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="max-w-md text-center space-y-6">
+          <FaceAlien className="h-32 w-32 text-green-600 mx-auto animate-pulse" />
+          <h1 className="text-3xl font-bold text-green-400">Account Created!</h1>
+          <div className="bg-neutral-900 border border-gray-700 rounded-xl p-6 space-y-3">
+            <p className="text-gray-300 text-lg">
+              Your account is pending admin approval.
+            </p>
+            <p className="text-gray-400 text-sm">
+              You'll receive access once an administrator reviews your registration.
+              Please check back later.
+            </p>
+          </div>
+          <Button
+            onClick={() => setLocation("/login")}
+            className="bg-green-600 hover:bg-green-700 text-white px-8 py-2 rounded-full"
+          >
+            Back to Login
+          </Button>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -79,7 +120,10 @@ export default function Register() {
       <div className="w-[320px] max-w-md space-y-6">
         {/* Alien Logo */}
         <div className="flex flex-col items-center mb-6 space-y-4">
-          <FaceAlien className="h-24 w-24 text-green-600 animate-pulse" />
+          <div className="relative">
+            <div className="absolute inset-0 blur-2xl opacity-50 bg-green-600" />
+            <FaceAlien className="h-24 w-24 text-green-600 animate-pulse relative z-10" />
+          </div>
         </div>
 
         {/* Headings */}
@@ -126,29 +170,28 @@ export default function Register() {
             <Input
               type={showPassword ? "text" : "password"}
               placeholder="Password"
-              className="w-full h-14 bg-black text-white border border-white focus:border-green-500 focus:ring focus:ring-green-600 pr-10"
+              className="w-full h-14 bg-black text-white border border-white focus:border-green-500 focus:ring focus:ring-green-600 pr-12"
               {...form.register("password")}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white hover:text-green-500"
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
             >
-              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
-            {form.formState.errors.password && (
-              <p className="text-sm text-destructive mt-1">{form.formState.errors.password.message}</p>
-            )}
           </div>
+          {form.formState.errors.password && (
+            <p className="text-sm text-destructive mt-1">{form.formState.errors.password.message}</p>
+          )}
 
           <select
+            className="w-full h-14 bg-black text-white border border-white focus:border-green-500 focus:ring focus:ring-green-600 rounded px-3"
             {...form.register("country")}
-            className="w-full h-14 rounded-md border border-white bg-black text-white px-3 text-base focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             <option value="">Select your country</option>
             {countries.map((c) => (
-              <option key={c} value={c} className="bg-black text-white">
+              <option key={c} value={c}>
                 {c}
               </option>
             ))}
@@ -157,36 +200,48 @@ export default function Register() {
             <p className="text-sm text-destructive mt-1">{form.formState.errors.country.message}</p>
           )}
 
-          {error && <p className="text-sm text-destructive text-center">{error}</p>}
+          <Input
+            placeholder="Invite code (optional)"
+            className="w-full h-14 bg-black text-white border border-white focus:border-green-500 focus:ring focus:ring-green-600"
+            {...form.register("inviteCode")}
+          />
+
+          {error && (
+            <div className="bg-red-900/30 border border-red-600 text-red-400 px-4 py-2 rounded">
+              {error}
+            </div>
+          )}
 
           <Button
             type="submit"
             disabled={registerMutation.isPending}
-            className="w-full h-14 bg-green-100 text-black border-2 border-green-500 hover:bg-green-200 rounded-full font-semibold"
+            className="w-full h-14 bg-white hover:bg-gray-100 text-green-600 border-2 border-green-600 font-semibold text-base rounded-full"
           >
             {registerMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <span className="flex items-center gap-2">
+                <Loader2 className="animate-spin" size={20} />
                 Signing up...
-              </>
+              </span>
             ) : (
               "Sign Up"
             )}
           </Button>
         </form>
 
-        {/* Footer */}
-        <div className="text-center text-sm space-y-4">
-          <div>
-            <span className="text-white">Already have an account? </span>
-            <Link href="/login">
-              <span className="text-green-600 hover:underline cursor-pointer">Log in</span>
-            </Link>
-          </div>
+        <div className="text-center text-sm text-gray-400">
+          Already have an account?{" "}
+          <Link href="/login" className="text-green-500 hover:text-green-400 font-semibold">
+            Log in
+          </Link>
+        </div>
 
-          <span className="inline-block px-4 py-2 rounded-full border border-green-600 text-green-600 font-semibold text-xs">
-            Created by व्रज पटेल
-          </span>
+        {/* Created by footer */}
+        <div className="text-center mt-6">
+          <div className="inline-block px-6 py-2 bg-neutral-900 border-2 border-green-600 rounded-full">
+            <p className="text-xs text-gray-400">
+              created by व्रज पटेल
+            </p>
+          </div>
         </div>
       </div>
     </motion.div>

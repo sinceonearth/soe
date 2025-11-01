@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { Globe, Plane, Ruler, Building2, TowerControl, Award, Clock, MapPin } from "lucide-react";
-import AchievementsInline from "@/components/AchievementsInline";
+import { Globe, Plane, Ruler, Building2, TowerControl, Clock, MapPin } from "lucide-react";
 import type { Flight } from "@shared/schema";
 
 // Import airports.json
@@ -24,15 +23,6 @@ interface AirportJSON {
   tz?: string;
 }
 
-// Type expected by AchievementsInline
-interface AchievementAirport {
-  id: number;
-  ident: string;
-  iata?: string;
-  iso_country?: string;
-  country?: string;
-}
-
 const airportsData: AirportJSON[] = airportsDataRaw as AirportJSON[];
 
 interface StatsDashboardProps {
@@ -40,13 +30,6 @@ interface StatsDashboardProps {
   totalStayins: number;
   flights: Flight[];
   stayins: any[];
-}
-
-interface Stamp {
-  id: string;
-  name: string;
-  isoCode: string;
-  imageUrl: string;
 }
 
 // Helper: get country from flight lat/lon via airports.json
@@ -59,41 +42,11 @@ const getCountryFromLatLon = (lat: number, lon: number) => {
 };
 
 export function StatsDashboard({ totalFlights, totalStayins, flights, stayins }: StatsDashboardProps) {
-  const [allStamps, setAllStamps] = useState<Stamp[]>([]);
-  const [showAchievements, setShowAchievements] = useState(false);
-
-  // Transform airportsData to AchievementAirport type for AchievementsInline
-  const airportsForAchievements: AchievementAirport[] = useMemo(
-    () =>
-      airportsData.map((a, idx) => ({
-        id: idx + 1,
-        ident: a.iata || a.icao || `AIRPORT_${idx + 1}`,
-        iata: a.iata,
-        iso_country: a.iso_country,
-        country: a.country,
-      })),
-    []
-  );
-
-  // Set stamps
-  useEffect(() => {
-    const isoCountries = ["in","ae","us","gb","th","sg","de","fr","it","ch","br","jp","pt","nl","be","my","va"];
-    setAllStamps(
-      isoCountries.map((code, i) => ({
-        id: `${i + 1}`,
-        name: code.toUpperCase(),
-        isoCode: code,
-        imageUrl: `/stamps/${code}.png`,
-      }))
-    );
-  }, []);
-
   // Compute stats
-  const { uniqueCountries, uniquePlaces, totalDistance, totalHours, uniqueAirportCodes, visitedAirportIds } = useMemo(() => {
+  const { uniqueCountries, uniquePlaces, totalDistance, totalHours, uniqueAirportCodes } = useMemo(() => {
     const countrySet = new Set<string>();
     const placeSet = new Set<string>();
     const airportSet = new Set<string>();
-    const visitedIds = new Set<number>();
 
     let distanceSum = 0;
     let hoursSum = 0;
@@ -103,27 +56,12 @@ export function StatsDashboard({ totalFlights, totalStayins, flights, stayins }:
       if (f.departure_latitude && f.departure_longitude) {
         const c = getCountryFromLatLon(f.departure_latitude, f.departure_longitude);
         if (c) countrySet.add(c.toUpperCase());
-
-        // find airport ID for Achievements
-        const airport = airportsForAchievements.find(
-          (a) =>
-            (a.iata && a.iata.toUpperCase() === f.departure.toUpperCase()) ||
-            (a.ident && a.ident.toUpperCase() === f.departure.toUpperCase())
-        );
-        if (airport) visitedIds.add(airport.id);
       }
 
       // arrival
       if (f.arrival_latitude && f.arrival_longitude) {
         const c = getCountryFromLatLon(f.arrival_latitude, f.arrival_longitude);
         if (c) countrySet.add(c.toUpperCase());
-
-        const airport = airportsForAchievements.find(
-          (a) =>
-            (a.iata && a.iata.toUpperCase() === f.arrival.toUpperCase()) ||
-            (a.ident && a.ident.toUpperCase() === f.arrival.toUpperCase())
-        );
-        if (airport) visitedIds.add(airport.id);
       }
 
       // airport codes
@@ -188,9 +126,8 @@ export function StatsDashboard({ totalFlights, totalStayins, flights, stayins }:
       totalDistance: distanceSum.toFixed(0),
       totalHours: hoursSum.toFixed(1),
       uniqueAirportCodes: airportSet,
-      visitedAirportIds: visitedIds,
     };
-  }, [flights, stayins, airportsForAchievements]);
+  }, [flights, stayins]);
 
   const formatNumber = (num: number | string) =>
     isNaN(Number(num)) ? num : new Intl.NumberFormat("en-IN").format(Number(num));
@@ -262,27 +199,6 @@ const StatCard = ({
           }}
         />
       </div>
-      <div className="flex justify-center mt-6 w-full max-w-4xl">
-        <button
-          onClick={() => setShowAchievements((prev) => !prev)}
-          className="flex items-center justify-center gap-3 px-8 py-4 rounded-full bg-gradient-to-r from-green-500/20 to-green-600/20 hover:from-green-500/30 hover:to-green-600/30 border-2 border-green-400 shadow-lg shadow-green-500/30 transition-all duration-300 hover:scale-105"
-        >
-          <Award className="w-7 h-7 text-green-400" />
-          <span className="text-white font-semibold text-lg">
-            {showAchievements ? "Hide" : "View"} Achievements
-          </span>
-        </button>
-      </div>
-      {showAchievements && (
-        <div className="mt-5 w-full max-w-4xl">
-          <AchievementsInline
-            allStamps={allStamps}
-            visitedAirportIds={visitedAirportIds}
-            airports={airportsForAchievements}
-            showStamps={showAchievements}
-          />
-        </div>
-      )}
     </div>
   );
 }

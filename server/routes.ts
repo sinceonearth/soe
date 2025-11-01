@@ -73,6 +73,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // --- Admin: get pending users ---
+  app.get("/api/admin/pending-users", requireAuth, requireAdmin, async (_req, res) => {
+    try {
+      const pendingUsers = await storage.getPendingUsers();
+      return res.json(pendingUsers);
+    } catch (err) {
+      console.error("❌ Error fetching pending users:", err);
+      return res.status(500).json({ message: "Failed to fetch pending users" });
+    }
+  });
+
+  // --- Admin: approve user ---
+  app.post("/api/admin/approve-user/:userId", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const user = await storage.approveUser(userId);
+      return res.json({ message: "User approved", user });
+    } catch (err) {
+      console.error("❌ Error approving user:", err);
+      return res.status(500).json({ message: "Failed to approve user" });
+    }
+  });
+
+  // --- Admin: reject user ---
+  app.delete("/api/admin/reject-user/:userId", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      await storage.rejectUser(userId);
+      return res.json({ message: "User rejected" });
+    } catch (err) {
+      console.error("❌ Error rejecting user:", err);
+      return res.status(500).json({ message: "Failed to reject user" });
+    }
+  });
+
+  // --- Admin: create invite code ---
+  app.post("/api/admin/invite-codes", requireAuth, requireAdmin, async (req: RequestWithUser, res) => {
+    try {
+      const { maxUses, expiresAt } = req.body;
+      const code = await storage.createInviteCode(
+        req.user!.userId,
+        maxUses || 1,
+        expiresAt ? new Date(expiresAt) : undefined
+      );
+      return res.json(code);
+    } catch (err) {
+      console.error("❌ Error creating invite code:", err);
+      return res.status(500).json({ message: "Failed to create invite code" });
+    }
+  });
+
+  // --- Admin: list invite codes ---
+  app.get("/api/admin/invite-codes", requireAuth, requireAdmin, async (_req, res) => {
+    try {
+      const codes = await storage.getAllInviteCodes();
+      return res.json(codes);
+    } catch (err) {
+      console.error("❌ Error fetching invite codes:", err);
+      return res.status(500).json({ message: "Failed to fetch invite codes" });
+    }
+  });
+
+  // --- Admin: deactivate invite code ---
+  app.patch("/api/admin/invite-codes/:codeId/deactivate", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { codeId } = req.params;
+      const code = await storage.deactivateInviteCode(codeId);
+      return res.json({ message: "Code deactivated", code });
+    } catch (err) {
+      console.error("❌ Error deactivating invite code:", err);
+      return res.status(500).json({ message: "Failed to deactivate invite code" });
+    }
+  });
+
+  // --- Admin: get users by invite code ---
+  app.get("/api/admin/invite-codes/:code/users", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { code } = req.params;
+      const users = await storage.getUsersByInviteCode(code);
+      return res.json(users);
+    } catch (err) {
+      console.error("❌ Error fetching users by invite code:", err);
+      return res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
   // --- List flights for logged-in user ---
   app.get("/api/flights", requireAuth, async (req: RequestWithUser, res) => {
     try {
