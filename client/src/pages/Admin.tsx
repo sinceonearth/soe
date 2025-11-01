@@ -180,7 +180,7 @@ export default function Admin() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen w-full bg-black text-white flex flex-col relative px-4 md:px-14 pb-16 pt-1 overflow-x-hidden">
       <Header />
 
 <div className="w-full bg-black text-white flex flex-col pt-24 pb-12 overflow-x-hidden">
