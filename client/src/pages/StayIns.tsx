@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import type { Stayin } from "@shared/schema";
 import { Building2, MapPin, Calendar, ArrowLeft, Plus } from "lucide-react";
 import AddStayInForm from "@/components/AddStayInForm";
+import { motion } from "framer-motion";
 
 interface StayInsProps {
   stayins: Stayin[];
@@ -138,9 +139,20 @@ export default function StayIns({ stayins, userId, onRefresh }: StayInsProps) {
   }
 
   return (
-    <div className="min-h-screen w-full bg-black text-white flex flex-col relative px-4 md:px-8">
+    <div className="min-h-screen w-full bg-black text-white flex flex-col relative px-4 md:px-8 pb-12 pt-4 overflow-x-hidden">
+       
+       {/* Animated Gradient Header */}
+      <motion.h1
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-[#22c55e] drop-shadow-[0_0_15px_rgba(34,197,94,0.4)] text-center mb-10 inline-block"
+      >
+        Stay Ins
+      </motion.h1>
+
       {/* Add Stay In Button */}
-      <div className="mb-6">
+      <div className="mb-6 flex justify-center md:justify-start">
         <button
           onClick={() => setShowAddForm(true)}
           className="px-6 py-2 bg-sky-500 hover:bg-sky-600 text-black font-semibold rounded-full transition-all flex items-center gap-2"
@@ -149,11 +161,13 @@ export default function StayIns({ stayins, userId, onRefresh }: StayInsProps) {
           Add Stay In
         </button>
       </div>
-
+         
+         <div className="border-b border-gray-600/40 my-6" />
+         
       {/* Header */}
       <div className="mb-6">
         <div className="text-sky-400 text-2xl font-semibold mb-3">
-          Stay Ins
+          Bookings
         </div>
 
         {/* Year Tabs - scrollable like TripHistory */}

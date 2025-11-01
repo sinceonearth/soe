@@ -197,7 +197,7 @@ export default function Admin() {
         
 
         {/* Tabs */}
-        <div className="w-full overflow-x-auto scrollbar-hide mb-6">
+        <div className="w-full overflow-x-auto scrollbar-hide mb-2">
           <div className="flex gap-7 py-4">
             <button
               onClick={() => setSelectedTab("pending")}
@@ -240,6 +240,8 @@ export default function Admin() {
             </button>
           </div>
         </div>
+
+         <div className="border-b border-gray-600/40 my-6" />
 
         {/* Pending Users */}
         {selectedTab === "pending" && (

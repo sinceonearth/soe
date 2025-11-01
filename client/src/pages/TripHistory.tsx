@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import type { Flight } from "@shared/schema";
 import { Ruler, Clock, Plus, ArrowLeft } from "lucide-react";
 import ManualAddFlight from "@/components/ManualAddFlight";
+import { motion } from "framer-motion";
 
 interface TripHistoryProps {
   flights: Flight[];
@@ -21,30 +22,20 @@ const getDistance = (
   lon2?: number | null,
   storedDistance?: number | null
 ): number | null => {
-  // Use stored distance if available
-  if (storedDistance != null && storedDistance > 0) {
-    return storedDistance;
-  }
-  
+  if (storedDistance != null && storedDistance > 0) return storedDistance;
   if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
 
-  // Haversine formula for great circle distance
   const toRad = (x: number) => (x * Math.PI) / 180;
-  const R = 6371; // Earth's radius in km
+  const R = 6371;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const greatCircleDist = R * c;
-  
-  // Apply 1.15x multiplier for actual flight path (air corridors, weather routing, etc.)
-  return greatCircleDist * 1.15;
+  return R * c * 1.15; // 1.15x correction for real path
 };
 
-// Format duration in "Xh Ym"
 const formatDuration = (hours: number) => {
   const h = Math.floor(hours);
   const m = Math.round((hours - h) * 60);
@@ -59,12 +50,11 @@ export default function TripHistory({ flights, userId, onRefresh }: TripHistoryP
 
   const handleFlightAdded = () => {
     setShowAddForm(false);
-    if (onRefresh) onRefresh();
+    onRefresh?.();
   };
 
   const [upcomingFlightsState, setUpcomingFlightsState] = useState<Flight[]>([]);
   const [pastFlightsState, setPastFlightsState] = useState<Flight[]>([]);
-
   const now = new Date();
 
   const safeParseDate = (dateStr?: string | null): Date | null => {
@@ -73,23 +63,20 @@ export default function TripHistory({ flights, userId, onRefresh }: TripHistoryP
     return isNaN(d.getTime()) ? null : d;
   };
 
-  // Initialize upcoming & past flights
+  // Separate upcoming & past flights
   useEffect(() => {
     const upcoming: Flight[] = [];
     const past: Flight[] = [];
-
     flights.forEach((f) => {
       const d = safeParseDate(f.date ?? f.departure_time);
       if (!d) return;
-      if (d > now) upcoming.push(f);
-      else past.push(f);
+      d > now ? upcoming.push(f) : past.push(f);
     });
-
     setUpcomingFlightsState(upcoming);
     setPastFlightsState(past);
   }, [flights]);
 
-  // Auto move flights from upcoming → past after date has passed
+  // Auto move to past
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
@@ -98,21 +85,20 @@ export default function TripHistory({ flights, userId, onRefresh }: TripHistoryP
 
       upcomingFlightsState.forEach((f) => {
         const d = safeParseDate(f.date ?? f.departure_time);
-        if (d && d <= now) {
-          newlyPast.push({ ...f, status: "Landed" });
-        } else stillUpcoming.push(f);
+        if (d && d <= now) newlyPast.push({ ...f, status: "Landed" });
+        else stillUpcoming.push(f);
       });
 
       if (newlyPast.length > 0) {
         setPastFlightsState((prev) => [...prev, ...newlyPast]);
         setUpcomingFlightsState(stillUpcoming);
       }
-    }, 60 * 1000);
+    }, 60000);
 
     return () => clearInterval(interval);
   }, [upcomingFlightsState]);
 
-  // Past years tabs
+  // Past tabs by year
   const years = useMemo(() => {
     const setYears = new Set<number>();
     pastFlightsState.forEach((f) => {
@@ -129,7 +115,7 @@ export default function TripHistory({ flights, userId, onRefresh }: TripHistoryP
     const year = Number(selectedPastTab);
     return pastFlightsState.filter((f) => {
       const d = safeParseDate(f.date ?? f.departure_time);
-      return d !== null && d.getFullYear() === year;
+      return d && d.getFullYear() === year;
     });
   }, [pastFlightsState, selectedPastTab]);
 
@@ -147,10 +133,7 @@ export default function TripHistory({ flights, userId, onRefresh }: TripHistoryP
   }) => {
     const d = safeParseDate(f.date ?? f.departure_time);
     const dateStr = d ? d.toLocaleDateString() : "N/A";
-
-    const statusColor = isUpcoming
-      ? "bg-green-500 text-black"
-      : "bg-red-600 text-white";
+    const statusColor = isUpcoming ? "bg-green-500 text-black" : "bg-red-600 text-white";
 
     const distanceKm = getDistance(
       f.departure_latitude,
@@ -160,41 +143,30 @@ export default function TripHistory({ flights, userId, onRefresh }: TripHistoryP
       f.distance
     );
 
-    // Calculate duration from stored value or estimate
     let durationHours: number | null = null;
     if (f.duration) {
       const durationStr = String(f.duration);
-      if (durationStr.includes('h') || durationStr.includes('m')) {
-        const hours = durationStr.match(/(\d+)h/);
-        const mins = durationStr.match(/(\d+)m/);
-        durationHours = (hours ? parseInt(hours[1]) : 0) + (mins ? parseInt(mins[1]) / 60 : 0);
-      } else {
-        durationHours = parseFloat(durationStr) / 60;
-      }
+      const hours = durationStr.match(/(\d+)h/);
+      const mins = durationStr.match(/(\d+)m/);
+      durationHours =
+        (hours ? parseInt(hours[1]) : 0) + (mins ? parseInt(mins[1]) / 60 : 0);
     } else if (distanceKm != null) {
-      // Estimate: actual flight time = distance / 850 km/h + 30min for taxi/climb/descent
-      durationHours = (distanceKm / 850) + 0.5;
+      durationHours = distanceKm / 850 + 0.5;
     }
 
     return (
       <div className="p-4 bg-neutral-900 border border-gray-700 rounded-xl hover:shadow-lg transition-shadow flex justify-between">
-        {/* Left side */}
         <div className="flex flex-col gap-1">
-          {/* Airline + flight number */}
           <div className="font-semibold text-lg text-white">
             {f.airline_name || "Unknown Airline"} {f.flight_number || "N/A"}
           </div>
-
-          {/* Departure → Arrival */}
           <div className="text-sm text-gray-300">
             {f.departure || "???"} → {f.arrival || "???"}
           </div>
-
-          {/* Distance & Duration */}
           <div className="flex gap-2 mt-1 text-xs text-gray-400">
             {distanceKm && (
               <span className="flex items-center gap-1">
-                <Ruler size={12} /> {distanceKm.toFixed(1)} kms
+                <Ruler size={12} /> {distanceKm.toFixed(1)} km
               </span>
             )}
             {durationHours && (
@@ -205,14 +177,15 @@ export default function TripHistory({ flights, userId, onRefresh }: TripHistoryP
           </div>
         </div>
 
-        {/* Right side */}
         <div className="flex flex-col items-end text-sm gap-1">
           <span className="text-gray-300">{dateStr}</span>
           {showStatus && f.status && (
             <span
               className={`px-2 py-0.5 rounded-full text-xs flex items-center gap-1 ${statusColor}`}
             >
-              {isUpcoming && <span className="w-2 h-2 rounded-full animate-pulse bg-white" />}
+              {isUpcoming && (
+                <span className="w-2 h-2 rounded-full animate-pulse bg-white" />
+              )}
               {f.status}
             </span>
           )}
@@ -221,7 +194,6 @@ export default function TripHistory({ flights, userId, onRefresh }: TripHistoryP
     );
   };
 
-  // Show full-page Add Flight form
   if (showAddForm) {
     return (
       <div className="min-h-screen w-full bg-black text-white flex flex-col relative px-4 md:px-8 py-6">
@@ -238,9 +210,20 @@ export default function TripHistory({ flights, userId, onRefresh }: TripHistoryP
   }
 
   return (
-    <div className="min-h-screen w-full bg-black text-white flex flex-col relative px-4 md:px-8">
-      {/* Add Flight Button */}
-      <div className="mb-6">
+    <div className="min-h-screen w-full bg-black text-white flex flex-col relative px-4 md:px-8 pb-12 pt-4 overflow-x-hidden">
+
+      {/* Animated Gradient Header */}
+      <motion.h1
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-[#22c55e] drop-shadow-[0_0_15px_rgba(34,197,94,0.4)] text-center mb-10 inline-block"
+      >
+        Trips History
+      </motion.h1>
+
+      {/* Add Flight */}
+      <div className="mb-6 flex justify-center md:justify-start">
         <button
           onClick={() => setShowAddForm(true)}
           className="px-6 py-2 bg-green-500 hover:bg-green-600 text-black font-semibold rounded-full transition-all flex items-center gap-2"
@@ -250,18 +233,18 @@ export default function TripHistory({ flights, userId, onRefresh }: TripHistoryP
         </button>
       </div>
 
+         <div className="border-b border-gray-600/40 my-6" />
+         
       {/* Upcoming Flights */}
       <div className="mb-6">
-        <div className="text-green-400 text-xl font-semibold mb-3">
-          Upcoming Flights
-        </div>
+        <div className="text-green-400 text-xl font-semibold mb-3">Upcoming Flights</div>
         {upcomingFlightsState.length === 0 ? (
           <div className="text-gray-400 text-center">No upcoming flights</div>
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {upcomingFlightsState.slice(0, visibleUpcomingCount).map((f) => (
-                <FlightCard key={f.id} f={f} showStatus={true} isUpcoming />
+                <FlightCard key={f.id} f={f} showStatus isUpcoming />
               ))}
             </div>
             {visibleUpcomingCount < upcomingFlightsState.length && (
@@ -310,7 +293,6 @@ export default function TripHistory({ flights, userId, onRefresh }: TripHistoryP
 
         <div className="border-b border-gray-600/40 my-3" />
 
-        {/* Total past flights */}
         <div className="text-red-400 font-medium mb-4">
           ✈️ Total flights: {pastToShow.length}
         </div>
@@ -323,7 +305,7 @@ export default function TripHistory({ flights, userId, onRefresh }: TripHistoryP
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {pastToShow.slice(0, visiblePastCount).map((f) => (
-                <FlightCard key={f.id} f={f} showStatus={true} />
+                <FlightCard key={f.id} f={f} showStatus />
               ))}
             </div>
             {visiblePastCount < pastToShow.length && (

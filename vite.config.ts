@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   root: path.resolve(__dirname, "client"),
-  publicDir: path.resolve(__dirname, "client/public"), // (optional, for clarity)
+  publicDir: path.resolve(__dirname, "client/public"),
   plugins: [react()],
   resolve: {
     alias: {
@@ -17,8 +17,23 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: path.resolve(__dirname, "dist/public"),
+    outDir: path.resolve(__dirname, "dist"),
     emptyOutDir: true,
+    chunkSizeWarningLimit: 20000, // 20 MB
+    rollupOptions: {
+      output: {
+        // Automatic code splitting: put node_modules into separate chunks
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            return id
+              .toString()
+              .split("node_modules/")[1]
+              .split("/")[0]
+              .toString();
+          }
+        },
+      },
+    },
   },
   server: {
     host: "0.0.0.0",

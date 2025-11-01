@@ -10,7 +10,8 @@ export function Header() {
   const { user, logout } = useAuth();
 
   return (
-    <header className="fixed top-0 left-0 z-50 w-full bg-gradient-to-r from-green-500 via-green-600 to-green-500 shadow-lg">
+    <header className="fixed top-0 left-0 z-50 w-full bg-transparent backdrop-blur-md 
+    ">
       <div className="container mx-auto flex h-16 items-center justify-between px-6">
         <div className="flex items-center gap-2">
           <Link href="/" className="flex items-center gap-3">

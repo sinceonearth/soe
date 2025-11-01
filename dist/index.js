@@ -32,13 +32,12 @@ __export(schema_exports, {
   insertAirlineSchema: () => insertAirlineSchema,
   insertAirportSchema: () => insertAirportSchema,
   insertFlightSchema: () => insertFlightSchema,
-  insertStampSchema: () => insertStampSchema,
   insertStayinSchema: () => insertStayinSchema,
   insertUserSchema: () => insertUserSchema,
+  inviteCodes: () => inviteCodes,
   loginUserSchema: () => loginUserSchema,
   registerUserSchema: () => registerUserSchema,
   sessions: () => sessions,
-  stamps: () => stamps,
   stayins: () => stayins,
   users: () => users
 });
@@ -65,6 +64,17 @@ var sessions = pgTable(
   },
   (table) => [index("IDX_session_expire").on(table.expire)]
 );
+var inviteCodes = pgTable("invite_codes", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  code: varchar("code", { length: 20 }).unique().notNull(),
+  created_by: uuid("created_by").references(() => users.id),
+  used_by: uuid("used_by").references(() => users.id),
+  max_uses: integer("max_uses").default(1),
+  current_uses: integer("current_uses").default(0),
+  is_active: boolean("is_active").default(true).notNull(),
+  expires_at: timestamp("expires_at"),
+  created_at: timestamp("created_at").defaultNow()
+});
 var users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   alien: varchar("alien").unique().notNull(),
@@ -76,6 +86,8 @@ var users = pgTable("users", {
   // ✅ always set
   profile_image_url: varchar("profile_image_url"),
   is_admin: boolean("is_admin").default(false).notNull(),
+  approved: boolean("approved").default(false).notNull(),
+  invite_code_used: varchar("invite_code_used"),
   created_at: timestamp("created_at").defaultNow(),
   updated_at: timestamp("updated_at").defaultNow()
 });
@@ -91,7 +103,8 @@ var registerUserSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   country: z.string().default("Other"),
   // default to Other if not provided
-  alien: z.string().regex(/^\d{2}$/, "Alien must be 2 digits (e.g. 01, 02, 10)").optional()
+  alien: z.string().regex(/^\d{2}$/, "Alien must be 2 digits (e.g. 01, 02, 10)").optional(),
+  inviteCode: z.string().optional()
 });
 var loginUserSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -155,16 +168,6 @@ var airports = pgTable("airports", {
   local_code: varchar("local_code")
 });
 var insertAirportSchema = createInsertSchema(airports);
-var stamps = pgTable("stamps", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull(),
-  image_url: text("image_url").notNull(),
-  created_at: timestamp("created_at").defaultNow()
-});
-var insertStampSchema = createInsertSchema(stamps).omit({
-  id: true,
-  created_at: true
-});
 var stayins = pgTable("stayins", {
   id: uuid("id").defaultRandom().primaryKey(),
   user_id: uuid("user_id").references(() => users.id).notNull(),
@@ -237,7 +240,7 @@ var storage = {
     const result = await pool.query(`SELECT * FROM users ORDER BY id ASC`);
     return result.rows;
   },
-  async createUser({ username, email, passwordHash, name, country }) {
+  async createUser({ username, email, passwordHash, name, country, approved, inviteCodeUsed }) {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -247,10 +250,10 @@ var storage = {
       if (nextAlienNumber > 99) throw new Error("Maximum number of users reached");
       const alienStr = String(nextAlienNumber).padStart(2, "0");
       const insertRes = await client.query(
-        `INSERT INTO users (username, email, password_hash, name, country, alien)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO users (username, email, password_hash, name, country, alien, approved, invite_code_used)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [username, email, passwordHash, name, country || null, alienStr]
+        [username, email, passwordHash, name, country || null, alienStr, approved || false, inviteCodeUsed || null]
       );
       await client.query("COMMIT");
       return insertRes.rows[0];
@@ -260,6 +263,89 @@ var storage = {
     } finally {
       client.release();
     }
+  },
+  /* ===============================
+     🎟️ Invite Codes
+     =============================== */
+  async validateInviteCode(code) {
+    const result = await pool.query(
+      `SELECT * FROM invite_codes 
+       WHERE code = $1 
+       AND is_active = true 
+       AND (expires_at IS NULL OR expires_at > NOW())
+       AND current_uses < max_uses`,
+      [code]
+    );
+    return result.rows[0];
+  },
+  async markInviteCodeUsed(code, userId) {
+    await pool.query(
+      `UPDATE invite_codes 
+       SET current_uses = current_uses + 1, used_by = $2
+       WHERE code = $1`,
+      [code, userId]
+    );
+  },
+  async createInviteCode(createdBy, maxUses = 1, expiresAt) {
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
+    const result = await pool.query(
+      `INSERT INTO invite_codes (code, created_by, max_uses, expires_at)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [code, createdBy, maxUses, expiresAt || null]
+    );
+    return result.rows[0];
+  },
+  async getAllInviteCodes() {
+    const result = await pool.query(
+      `SELECT ic.*, u.username as created_by_username 
+       FROM invite_codes ic
+       LEFT JOIN users u ON ic.created_by = u.id
+       ORDER BY ic.created_at DESC`
+    );
+    return result.rows;
+  },
+  async getUsersByInviteCode(code) {
+    const result = await pool.query(
+      `SELECT id, username, name, email, created_at
+       FROM users
+       WHERE invite_code_used = $1
+       ORDER BY created_at DESC`,
+      [code]
+    );
+    return result.rows;
+  },
+  async deactivateInviteCode(codeId) {
+    const result = await pool.query(
+      `UPDATE invite_codes 
+       SET is_active = false
+       WHERE id = $1
+       RETURNING *`,
+      [codeId]
+    );
+    return result.rows[0];
+  },
+  async getPendingUsers() {
+    const result = await pool.query(
+      `SELECT id, username, email, name, country, alien, created_at
+       FROM users
+       WHERE approved = false
+       ORDER BY created_at DESC`
+    );
+    return result.rows;
+  },
+  async approveUser(userId) {
+    const result = await pool.query(
+      `UPDATE users 
+       SET approved = true
+       WHERE id = $1
+       RETURNING *`,
+      [userId]
+    );
+    return result.rows[0];
+  },
+  async rejectUser(userId) {
+    await pool.query(`DELETE FROM users WHERE id = $1`, [userId]);
   },
   /* ===============================
      ✈️ Flights
@@ -334,7 +420,7 @@ function verifyToken(token) {
 var router = Router();
 router.post("/register", async (req, res) => {
   try {
-    const { name, username, email, password, country } = req.body;
+    const { name, username, email, password, country, inviteCode } = req.body;
     if (!name || !username || !email || !password) {
       return res.status(400).json({ message: "All fields required" });
     }
@@ -342,14 +428,36 @@ router.post("/register", async (req, res) => {
     if (existingUser) {
       return res.status(409).json({ message: "Email already registered" });
     }
+    let approved = false;
+    let usedInviteCode = null;
+    if (inviteCode) {
+      const validCode = await storage.validateInviteCode(inviteCode);
+      if (validCode) {
+        approved = true;
+        usedInviteCode = inviteCode;
+      } else {
+        return res.status(400).json({ message: "Invalid or expired invite code" });
+      }
+    }
     const passwordHash = await bcrypt.hash(password, 10);
     const newUser = await storage.createUser({
       name,
       username,
       email,
       passwordHash,
-      country: country || null
+      country: country || null,
+      approved,
+      inviteCodeUsed: usedInviteCode
     });
+    if (usedInviteCode) {
+      await storage.markInviteCodeUsed(usedInviteCode, newUser.id);
+    }
+    if (!approved) {
+      return res.status(201).json({
+        message: "Registration successful. Your account is pending admin approval.",
+        requiresApproval: true
+      });
+    }
     const token = createToken({
       userId: newUser.id,
       email: newUser.email,
@@ -357,7 +465,6 @@ router.post("/register", async (req, res) => {
       isAdmin: !!newUser.is_admin,
       alien: newUser.alien,
       country: newUser.country
-      // <-- include country in JWT
     });
     return res.status(201).json({
       message: "Registration successful",
@@ -368,7 +475,8 @@ router.post("/register", async (req, res) => {
         username: newUser.username,
         country: newUser.country,
         alien: newUser.alien,
-        is_admin: !!newUser.is_admin
+        is_admin: !!newUser.is_admin,
+        approved: newUser.approved
       }
     });
   } catch (err) {
@@ -390,6 +498,12 @@ router.post("/login", async (req, res) => {
     if (!isValid) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
+    if (!user.approved) {
+      return res.status(403).json({
+        message: "Your account is pending admin approval. Please check back later.",
+        requiresApproval: true
+      });
+    }
     const token = createToken({
       userId: user.id,
       email: user.email,
@@ -397,7 +511,6 @@ router.post("/login", async (req, res) => {
       isAdmin: !!user.is_admin,
       alien: user.alien,
       country: user.country
-      // <-- include country in JWT
     });
     return res.json({
       message: "Login successful",
@@ -408,7 +521,8 @@ router.post("/login", async (req, res) => {
         username: user.username,
         country: user.country,
         alien: user.alien,
-        is_admin: !!user.is_admin
+        is_admin: !!user.is_admin,
+        approved: user.approved
       }
     });
   } catch (err) {
@@ -464,6 +578,78 @@ async function registerRoutes(app2) {
       return res.json(usersList.map(({ password_hash, ...u }) => ({ ...u, country: u.country ?? null })));
     } catch (err) {
       console.error("\u274C Error fetching users:", err);
+      return res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+  app2.get("/api/admin/pending-users", requireAuth, requireAdmin, async (_req, res) => {
+    try {
+      const pendingUsers = await storage.getPendingUsers();
+      return res.json(pendingUsers);
+    } catch (err) {
+      console.error("\u274C Error fetching pending users:", err);
+      return res.status(500).json({ message: "Failed to fetch pending users" });
+    }
+  });
+  app2.post("/api/admin/approve-user/:userId", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const user = await storage.approveUser(userId);
+      return res.json({ message: "User approved", user });
+    } catch (err) {
+      console.error("\u274C Error approving user:", err);
+      return res.status(500).json({ message: "Failed to approve user" });
+    }
+  });
+  app2.delete("/api/admin/reject-user/:userId", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      await storage.rejectUser(userId);
+      return res.json({ message: "User rejected" });
+    } catch (err) {
+      console.error("\u274C Error rejecting user:", err);
+      return res.status(500).json({ message: "Failed to reject user" });
+    }
+  });
+  app2.post("/api/admin/invite-codes", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { maxUses, expiresAt } = req.body;
+      const code = await storage.createInviteCode(
+        req.user.userId,
+        maxUses || 1,
+        expiresAt ? new Date(expiresAt) : void 0
+      );
+      return res.json(code);
+    } catch (err) {
+      console.error("\u274C Error creating invite code:", err);
+      return res.status(500).json({ message: "Failed to create invite code" });
+    }
+  });
+  app2.get("/api/admin/invite-codes", requireAuth, requireAdmin, async (_req, res) => {
+    try {
+      const codes = await storage.getAllInviteCodes();
+      return res.json(codes);
+    } catch (err) {
+      console.error("\u274C Error fetching invite codes:", err);
+      return res.status(500).json({ message: "Failed to fetch invite codes" });
+    }
+  });
+  app2.patch("/api/admin/invite-codes/:codeId/deactivate", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { codeId } = req.params;
+      const code = await storage.deactivateInviteCode(codeId);
+      return res.json({ message: "Code deactivated", code });
+    } catch (err) {
+      console.error("\u274C Error deactivating invite code:", err);
+      return res.status(500).json({ message: "Failed to deactivate invite code" });
+    }
+  });
+  app2.get("/api/admin/invite-codes/:code/users", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { code } = req.params;
+      const users2 = await storage.getUsersByInviteCode(code);
+      return res.json(users2);
+    } catch (err) {
+      console.error("\u274C Error fetching users by invite code:", err);
       return res.status(500).json({ message: "Failed to fetch users" });
     }
   });
@@ -609,7 +795,6 @@ var __dirname = path.dirname(fileURLToPath(import.meta.url));
 var vite_config_default = defineConfig({
   root: path.resolve(__dirname, "client"),
   publicDir: path.resolve(__dirname, "client/public"),
-  // (optional, for clarity)
   plugins: [react()],
   resolve: {
     alias: {
@@ -619,12 +804,28 @@ var vite_config_default = defineConfig({
     }
   },
   build: {
-    outDir: path.resolve(__dirname, "dist/public"),
-    emptyOutDir: true
+    outDir: path.resolve(__dirname, "dist"),
+    emptyOutDir: true,
+    chunkSizeWarningLimit: 2e4,
+    // 20 MB
+    rollupOptions: {
+      output: {
+        // Automatic code splitting: put node_modules into separate chunks
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            return id.toString().split("node_modules/")[1].split("/")[0].toString();
+          }
+        }
+      }
+    }
   },
   server: {
     host: "0.0.0.0",
     port: 5173,
+    allowedHosts: true,
+    hmr: {
+      clientPort: 443
+    },
     proxy: {
       "/api": "http://localhost:5000"
     }
@@ -641,7 +842,11 @@ async function setupVite(app2, server) {
   const vite = await createViteServer({
     ...vite_config_default,
     configFile: false,
-    server: { middlewareMode: true, hmr: { server } },
+    server: {
+      ...vite_config_default.server,
+      middlewareMode: true,
+      hmr: { server }
+    },
     appType: "custom",
     customLogger: viteLogger
   });
