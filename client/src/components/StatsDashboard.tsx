@@ -157,7 +157,7 @@ const StatCard = ({
 );
 
   return (
-    <div className="flex flex-col items-center w-full mb-6 gap-3 px-2 sm:px-4 select-none">
+    <div className="flex flex-col items-center w-full mb-6 gap-2 px-4 sm:px-1 select-none">
       <div className="flex flex-wrap justify-center gap-4 w-full max-w-4xl">
         <div className="flex flex-col items-center justify-center gap-1 bg-gradient-to-br from-green-500/10 to-black/40 backdrop-blur-sm px-6 py-3 rounded-full text-white shadow-lg border-2 border-green-500/20 hover:border-green-400/40 transition-all duration-300 hover:shadow-green-500/20">
           <div className="flex items-center gap-6">

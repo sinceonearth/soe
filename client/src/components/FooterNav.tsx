@@ -73,7 +73,7 @@ export function FooterNav() {
               <IconComponent
                 className="h-8 w-8"
                 style={{
-                  strokeWidth: 2.2,
+                  strokeWidth: 2.0,
                   fill: "none",
                   background: "transparent",
                 }}
