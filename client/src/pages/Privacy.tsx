@@ -48,7 +48,7 @@ export default function Privacy() {
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold text-green-400">Introduction</h2>
             <p className="text-gray-300 leading-relaxed">
-              Welcome to Since On Earth. We respect your privacy and are committed to protecting your personal data. This Privacy Policy explains how we collect, use, and safeguard your information when you use our travel tracking application.
+              Welcome to Since On Earth. We respect your privacy and are committed to protecting your personal data. This Privacy Policy explains how we handle your information when you use our travel tracking application.
             </p>
           </section>
 
@@ -63,6 +63,18 @@ export default function Privacy() {
               <li>Travel information (flights, stays, destinations)</li>
               <li>App usage and preferences</li>
             </ul>
+          </section>
+
+          {/* Location & Nearby Users */}
+          <section className="space-y-4">
+            <h2 className="text-2xl font-semibold text-green-400">Location & Nearby Users</h2>
+            <p className="text-gray-300 leading-relaxed">
+              Our app uses your device’s location to show your position on the map and display nearby users in real time. 
+              <strong>We do not store your location data on our servers.</strong> The location is used temporarily and only while using the radar feature.
+            </p>
+            <p className="text-gray-300 leading-relaxed">
+              You can disable location access at any time in your device settings. Using the radar feature implies consent to temporarily share your location with other nearby users within the app.
+            </p>
           </section>
 
           {/* How We Use Your Information */}
@@ -80,7 +92,7 @@ export default function Privacy() {
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold text-green-400">Use of Lucide Icons</h2>
             <p className="text-gray-300 leading-relaxed">
-              This app uses <strong>Lucide icons</strong> (https://lucide.dev) for visual elements such as buttons, flight cards, and status indicators. Lucide icons are MIT-licensed, free for commercial and personal use, and may be modified. Using these icons in the app does not involve any additional licensing fees or restrictions.
+              This app uses <strong>Lucide icons</strong> (https://lucide.dev) for visual elements such as buttons, flight cards, and status indicators. Lucide icons are MIT-licensed and free for commercial and personal use.
             </p>
           </section>
 
