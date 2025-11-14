@@ -1,14 +1,20 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 /* -------------------------------------------------------------------------- */
-/* 🔑 Token Management (Memory + LocalStorage)                                 */
+/* 🔑 Token Management                                                        */
 /* -------------------------------------------------------------------------- */
 
 const TOKEN_KEY = "auth_token";
-let authTokenMemory: string | null = null;
+
+export function getAuthToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
 
 export function setAuthToken(token: string): void {
-  authTokenMemory = token;
   try {
     localStorage.setItem(TOKEN_KEY, token);
   } catch (err) {
@@ -16,12 +22,7 @@ export function setAuthToken(token: string): void {
   }
 }
 
-export function getAuthToken(): string | null {
-  return authTokenMemory || localStorage.getItem(TOKEN_KEY);
-}
-
 export function clearAuthToken(): void {
-  authTokenMemory = null;
   try {
     localStorage.removeItem(TOKEN_KEY);
   } catch (err) {
@@ -50,7 +51,8 @@ async function throwIfResNotOk(res: Response): Promise<void> {
   if (!res.ok) {
     let message: string;
     try {
-      message = (await res.text()) || res.statusText;
+      const text = await res.text();
+      message = text || res.statusText;
     } catch {
       message = res.statusText;
     }
@@ -91,7 +93,8 @@ export async function apiRequest(
 /* 🌐 API Base URL                                                            */
 /* -------------------------------------------------------------------------- */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "";
 
 /* -------------------------------------------------------------------------- */
 /* 🧭 Query Function for TanStack Query                                       */
@@ -100,12 +103,13 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 type UnauthorizedBehavior = "returnNull" | "throw";
 
 export const getQueryFn =
-  <T>({ on401 = "throw" }: { on401?: UnauthorizedBehavior } = {}): QueryFunction<T> =>
+  <T>({ on401 = "throw" }: { on401?: UnauthorizedBehavior }): QueryFunction<T> =>
   async ({ queryKey }) => {
     const endpoint = queryKey[0] as string;
     const url = `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
 
     const token = getAuthToken();
+
     const headers: HeadersInit = {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -117,8 +121,9 @@ export const getQueryFn =
       credentials: "include",
     });
 
+    // Gracefully handle missing token or unauthorized
     if (res.status === 401) {
-      console.warn("⚠️ Unauthorized — returning null or throwing");
+      console.warn("⚠️ Unauthorized — returning null");
       if (on401 === "returnNull") return null as T;
       throw new Error("401: Unauthorized");
     }
@@ -134,6 +139,8 @@ export const getQueryFn =
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      // ✅ Default should not always call getQueryFn with /api/auth/user
+      // Leave queryFn undefined so each useQuery defines its own getQueryFn
       refetchOnWindowFocus: false,
       refetchInterval: false,
       retry: false,
