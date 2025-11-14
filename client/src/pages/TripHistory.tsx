@@ -126,9 +126,11 @@ export default function TripHistory() {
     const upcoming: Flight[] = [];
     const past: Flight[] = [];
     flights.forEach((f) => {
-      const d = safeParseDate(f.date ?? f.departure_time ?? undefined);
-      if (!d) return;
-      d > now ? upcoming.push(f) : past.push(f);
+      if (f.status?.toLowerCase() === "landed") {
+        past.push(f);
+      } else {
+        upcoming.push(f);
+      }
     });
     setUpcomingFlights(upcoming);
     setPastFlights(past);

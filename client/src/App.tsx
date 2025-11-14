@@ -20,6 +20,7 @@ const AlienIcon = createLucideIcon("AlienIcon", faceAlien);
 import GetStarted from "@/pages/GetStarted";
 import Register from "@/pages/Register";
 import Login from "@/pages/Login";
+import ProfileSetup from "@/pages/ProfileSetup";
 import Dashboard from "@/pages/Dashboard";
 import Achievements from "@/pages/Achievements";
 import Radr from "@/pages/Radr";
@@ -33,14 +34,18 @@ import NotFound from "@/pages/not-found";
 import TripHistory from "./pages/TripHistory";
 import StayIns from "./pages/StayIns";
 
-function Router({ isAuthenticated }: { isAuthenticated: boolean }) {
-  const [, navigate] = useLocation();
+function Router({ isAuthenticated, user }: { isAuthenticated: boolean; user: any }) {
+  const [location, navigate] = useLocation();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/dashboard");
+    if (isAuthenticated && user) {
+      if (!user.profile_setup_complete && location !== "/profile-setup") {
+        navigate("/profile-setup");
+      } else if (user.profile_setup_complete && location === "/profile-setup") {
+        navigate("/dashboard");
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user, location, navigate]);
 
   return (
     <Switch>
@@ -58,6 +63,7 @@ function Router({ isAuthenticated }: { isAuthenticated: boolean }) {
 
       {isAuthenticated && (
         <>
+          <Route path="/profile-setup" component={ProfileSetup} />
           <Route path="/" component={Dashboard} />
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/achievements" component={Achievements} />
@@ -79,7 +85,7 @@ function Router({ isAuthenticated }: { isAuthenticated: boolean }) {
 }
 
 function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const [location] = useLocation();
   const [mounted, setMounted] = useState(false);
 
@@ -87,6 +93,11 @@ function AppContent() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // ✅ Scroll to top when route changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
 
   if (isLoading) {
     return (
@@ -96,21 +107,21 @@ function AppContent() {
     );
   }
 
-  // ✅ Show header only when mounted and on authenticated pages (not login/register/start)
+  // ✅ Show header only when mounted and on authenticated pages (not login/register/start/profile-setup)
   const showHeader =
     mounted &&
     isAuthenticated &&
-    !["/", "/get-started", "/login", "/register"].includes(location);
+    !["/", "/get-started", "/login", "/register", "/profile-setup"].includes(location);
 
   return (
     <div className="min-h-screen bg-background pb-20">
       {showHeader && <Header />}
 
       <main className="flex flex-col w-full">
-        <Router isAuthenticated={!!isAuthenticated} />
+        <Router isAuthenticated={!!isAuthenticated} user={user} />
       </main>
 
-      {isAuthenticated && <FooterNav />}
+      {isAuthenticated && user?.profile_setup_complete && <FooterNav />}
     </div>
   );
 }

@@ -106,7 +106,7 @@ router.post("/login", async (req: Request, res: Response) => {
     };
 
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password required" });
+      return res.status(400).json({ message: "Email/username and password required" });
     }
 
     const user = await storage.getUserByUsernameOrEmail(email);
@@ -179,6 +179,9 @@ router.get("/user", requireAuth, async (req: RequestWithUser, res: Response) => 
       country: user.country ?? null,
       alien: user.alien,
       is_admin: user.is_admin ?? false,
+      profile_icon: user.profile_icon ?? null,
+      profile_color: user.profile_color ?? null,
+      profile_setup_complete: user.profile_setup_complete ?? false,
     });
   } catch (err) {
     console.error("❌ Get user error:", err);
@@ -270,6 +273,58 @@ router.delete("/account", requireAuth, async (req: RequestWithUser, res: Respons
   } catch (err) {
     console.error("❌ Delete account error:", err);
     return res.status(500).json({ message: "Failed to delete account" });
+  }
+});
+
+/* ===============================
+   🎨 PROFILE SETUP
+   =============================== */
+router.post("/profile-setup", requireAuth, async (req: RequestWithUser, res: Response) => {
+  try {
+    const { profile_icon, profile_color } = req.body;
+    const userId = req.user!.userId;
+
+    if (!profile_icon || !profile_color) {
+      return res.status(400).json({ message: "Icon and color are required" });
+    }
+
+    const updatedUser = await storage.updateProfileSetup(userId, {
+      profile_icon,
+      profile_color,
+      profile_setup_complete: true,
+    });
+
+    return res.json({
+      message: "Profile setup completed successfully",
+      user: updatedUser,
+    });
+  } catch (err) {
+    console.error("❌ Profile setup error:", err);
+    return res.status(500).json({ message: "Failed to complete profile setup" });
+  }
+});
+
+/* ===============================
+   🎨 UPDATE PROFILE ICON
+   =============================== */
+router.patch("/profile-icon", requireAuth, async (req: RequestWithUser, res: Response) => {
+  try {
+    const { profile_icon } = req.body;
+    const userId = req.user!.userId;
+
+    if (!profile_icon) {
+      return res.status(400).json({ message: "Icon is required" });
+    }
+
+    const updatedUser = await storage.updateProfileIcon(userId, profile_icon);
+
+    return res.json({
+      message: "Profile icon updated successfully",
+      user: updatedUser,
+    });
+  } catch (err) {
+    console.error("❌ Profile icon update error:", err);
+    return res.status(500).json({ message: "Failed to update profile icon" });
   }
 });
 

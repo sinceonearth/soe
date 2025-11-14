@@ -7,6 +7,7 @@ import { Geolocation } from "@capacitor/geolocation";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import { MapPin, Users, Navigation } from "lucide-react";
+import { UserIcon } from "@/components/UserIcon";
 
 interface NearbyUser {
   userId: string;
@@ -15,6 +16,7 @@ interface NearbyUser {
   lng: number;
   distance: number;
   lastSeen: number;
+  profile_icon?: string;
 }
 
 const Radar = () => {
@@ -141,12 +143,11 @@ const Radar = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 max-w-md text-center"
+            className="text-center"
           >
-            <p className="text-red-400 mb-4">{error}</p>
             <button
               onClick={detectLocation}
-              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors"
+              className="px-8 py-3 bg-white hover:bg-gray-100 text-green-600 border-2 border-green-600 rounded-full transition-colors font-semibold"
             >
               Try Again
             </button>
@@ -234,9 +235,7 @@ const Radar = () => {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-cyan-400 flex items-center justify-center text-black font-bold">
-                              {user.username.charAt(0).toUpperCase()}
-                            </div>
+                            <UserIcon iconName={user.profile_icon} size={40} />
                             <div>
                               <p className="text-white font-semibold">{user.username}</p>
                               <p className="text-xs text-gray-400">Active traveler</p>

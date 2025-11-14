@@ -7,6 +7,21 @@ export const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+// Run schema updates on startup
+(async () => {
+  try {
+    await pool.query(`
+      ALTER TABLE users 
+      ADD COLUMN IF NOT EXISTS profile_icon VARCHAR,
+      ADD COLUMN IF NOT EXISTS profile_color VARCHAR,
+      ADD COLUMN IF NOT EXISTS profile_setup_complete BOOLEAN DEFAULT FALSE NOT NULL
+    `);
+    console.log('✅ Database schema updated: profile columns added');
+  } catch (err) {
+    console.error('❌ Schema update error:', err);
+  }
+})();
+
 export interface UserInput {
   username: string;
   email: string;
@@ -284,8 +299,35 @@ async createFlight(flight: FlightInput) {
     return result.rows[0];
   },
 
+  async replyToContactMessage(messageId: string, reply: string) {
+    const result = await pool.query(
+      `UPDATE contact_messages SET admin_reply = $1, replied_at = NOW() WHERE id = $2 RETURNING *`,
+      [reply, messageId]
+    );
+    return result.rows[0];
+  },
+
   async deleteContactMessage(messageId: string) {
     await pool.query(`DELETE FROM contact_messages WHERE id = $1`, [messageId]);
+  },
+
+  async getUserContactMessages(email: string) {
+    const result = await pool.query(
+      `SELECT * FROM contact_messages WHERE email = $1 ORDER BY created_at DESC`,
+      [email]
+    );
+    return result.rows;
+  },
+
+  async userReplyToMessage(messageId: string, email: string, reply: string) {
+    const result = await pool.query(
+      `UPDATE contact_messages 
+       SET user_reply = $1, user_replied_at = NOW() 
+       WHERE id = $2 AND email = $3 
+       RETURNING *`,
+      [reply, messageId, email]
+    );
+    return result.rows[0];
   },
 /* ===============================
    🌍 User Location Update
@@ -324,5 +366,27 @@ async updateUserLocation(userId: string, latitude: number, longitude: number) {
       `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
       [passwordHash, userId]
     );
+  },
+
+  async updateProfileSetup(userId: string, data: { profile_icon: string; profile_color: string; profile_setup_complete: boolean }) {
+    const result = await pool.query(
+      `UPDATE users 
+       SET profile_icon = $1, profile_color = $2, profile_setup_complete = $3, updated_at = NOW()
+       WHERE id = $4
+       RETURNING id, username, email, name, country, alien, profile_icon, profile_color, profile_setup_complete, is_admin AS "isAdmin"`,
+      [data.profile_icon, data.profile_color, data.profile_setup_complete, userId]
+    );
+    return result.rows[0];
+  },
+
+  async updateProfileIcon(userId: string, profile_icon: string) {
+    const result = await pool.query(
+      `UPDATE users 
+       SET profile_icon = $1, updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, username, email, name, country, alien, profile_icon, profile_color, profile_setup_complete, is_admin AS "isAdmin"`,
+      [profile_icon, userId]
+    );
+    return result.rows[0];
   },
 }

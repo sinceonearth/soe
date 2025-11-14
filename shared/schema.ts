@@ -56,6 +56,9 @@ export const users = pgTable("users", {
   name: varchar("name").notNull(),
   country: varchar("country").default("Other").notNull(), // ✅ always set
   profile_image_url: varchar("profile_image_url"),
+  profile_icon: varchar("profile_icon"),
+  profile_color: varchar("profile_color"),
+  profile_setup_complete: boolean("profile_setup_complete").default(false).notNull(),
   is_admin: boolean("is_admin").default(false).notNull(),
   approved: boolean("approved").default(false).notNull(),
   invite_code_used: varchar("invite_code_used"),
@@ -96,7 +99,7 @@ export const registerUserSchema = z.object({
 export type RegisterUser = z.infer<typeof registerUserSchema>;
 
 export const loginUserSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().min(1, "Email or username required"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -227,6 +230,10 @@ export const contactMessages = pgTable("contact_messages", {
   subject: varchar("subject").notNull(),
   message: text("message").notNull(),
   is_read: boolean("is_read").default(false).notNull(),
+  admin_reply: text("admin_reply"),
+  replied_at: timestamp("replied_at"),
+  user_reply: text("user_reply"),
+  user_replied_at: timestamp("user_replied_at"),
   created_at: timestamp("created_at").defaultNow(),
 });
 

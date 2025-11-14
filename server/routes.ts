@@ -115,6 +115,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // --- Admin: delete user ---
+  app.delete("/api/admin/delete-user/:userId", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      await storage.deleteUser(userId);
+      return res.json({ message: "User deleted" });
+    } catch (err) {
+      console.error("❌ Error deleting user:", err);
+      return res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   // --- Admin: create invite code ---
   app.post("/api/admin/invite-codes", requireAuth, requireAdmin, async (req: RequestWithUser, res) => {
     try {
@@ -454,10 +466,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // --- Admin: reply to contact message ---
+  app.patch("/api/admin/contact-messages/:messageId/reply", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const { reply } = req.body;
+      if (!reply || reply.trim() === "") {
+        return res.status(400).json({ message: "Reply cannot be empty" });
+      }
+      const message = await storage.replyToContactMessage(messageId, reply);
+      return res.json({ message: "Reply sent successfully", data: message });
+    } catch (err) {
+      console.error("❌ Error replying to message:", err);
+      return res.status(500).json({ message: "Failed to send reply" });
+    }
+  });
+
+  // --- User: get own contact messages ---
+  app.get("/api/contact-messages", requireAuth, async (req: RequestWithUser, res) => {
+    try {
+      const email = req.user!.email;
+      const messages = await storage.getUserContactMessages(email);
+      return res.json(messages);
+    } catch (err) {
+      console.error("❌ Error fetching user messages:", err);
+      return res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+
+  // --- User: reply to admin message ---
+  app.patch("/api/contact-messages/:messageId/user-reply", requireAuth, async (req: RequestWithUser, res) => {
+    try {
+      const { messageId } = req.params;
+      const { reply } = req.body;
+      const email = req.user!.email;
+
+      if (!reply || reply.trim() === "") {
+        return res.status(400).json({ message: "Reply cannot be empty" });
+      }
+
+      const message = await storage.userReplyToMessage(messageId, email, reply);
+      if (!message) {
+        return res.status(404).json({ message: "Message not found or you don't have permission" });
+      }
+
+      return res.json({ message: "Reply sent successfully", data: message });
+    } catch (err) {
+      console.error("❌ Error sending user reply:", err);
+      return res.status(500).json({ message: "Failed to send reply" });
+    }
+  });
+
 // --- Radar: update & get nearby users ---
 const activeUsers = new Map<
   string,
-  { userId: string; username: string; lat: number; lng: number; lastSeen: number }
+  { userId: string; username: string; lat: number; lng: number; lastSeen: number; profile_icon?: string }
 >();
 
 app.post("/api/radr/update", requireAuth, async (req: RequestWithUser, res) => {
@@ -470,7 +533,11 @@ app.post("/api/radr/update", requireAuth, async (req: RequestWithUser, res) => {
   const username = req.user!.username;
   const now = Date.now();
 
-  activeUsers.set(userId, { userId, username, lat, lng, lastSeen: now });
+  // Fetch user's profile icon from database
+  const userProfile = await storage.getUserById(userId);
+  const profile_icon = userProfile?.profile_icon;
+
+  activeUsers.set(userId, { userId, username, lat, lng, lastSeen: now, profile_icon });
 
   // Remove users who haven't updated in 2 minutes
   const cutoff = now - 2 * 60 * 1000;

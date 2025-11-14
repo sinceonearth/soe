@@ -25,11 +25,16 @@ export function useAuth() {
     navigate("/");
   };
 
+  const refreshUser = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+  };
+
   return {
     user,
     token,
     isLoading,
     isAuthenticated: !!user,
     logout,
+    refreshUser,
   };
 }

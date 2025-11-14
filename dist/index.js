@@ -89,6 +89,9 @@ var users = pgTable("users", {
   country: varchar("country").default("Other").notNull(),
   // ✅ always set
   profile_image_url: varchar("profile_image_url"),
+  profile_icon: varchar("profile_icon"),
+  profile_color: varchar("profile_color"),
+  profile_setup_complete: boolean("profile_setup_complete").default(false).notNull(),
   is_admin: boolean("is_admin").default(false).notNull(),
   approved: boolean("approved").default(false).notNull(),
   invite_code_used: varchar("invite_code_used"),
@@ -113,7 +116,7 @@ var registerUserSchema = z.object({
   inviteCode: z.string().optional()
 });
 var loginUserSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().min(1, "Email or username required"),
   password: z.string().min(6, "Password must be at least 6 characters")
 });
 var flights = pgTable("flights", {
@@ -204,6 +207,10 @@ var contactMessages = pgTable("contact_messages", {
   subject: varchar("subject").notNull(),
   message: text("message").notNull(),
   is_read: boolean("is_read").default(false).notNull(),
+  admin_reply: text("admin_reply"),
+  replied_at: timestamp("replied_at"),
+  user_reply: text("user_reply"),
+  user_replied_at: timestamp("user_replied_at"),
   created_at: timestamp("created_at").defaultNow()
 });
 var insertContactMessageSchema = createInsertSchema(contactMessages).omit({
@@ -224,6 +231,19 @@ var pool = new Pool({
   connectionString: NEON_DB_URL2,
   ssl: { rejectUnauthorized: false }
 });
+(async () => {
+  try {
+    await pool.query(`
+      ALTER TABLE users 
+      ADD COLUMN IF NOT EXISTS profile_icon VARCHAR,
+      ADD COLUMN IF NOT EXISTS profile_color VARCHAR,
+      ADD COLUMN IF NOT EXISTS profile_setup_complete BOOLEAN DEFAULT FALSE NOT NULL
+    `);
+    console.log("\u2705 Database schema updated: profile columns added");
+  } catch (err) {
+    console.error("\u274C Schema update error:", err);
+  }
+})();
 var storage = {
   /* ===============================
      👤 Users
@@ -439,8 +459,32 @@ var storage = {
     );
     return result.rows[0];
   },
+  async replyToContactMessage(messageId, reply) {
+    const result = await pool.query(
+      `UPDATE contact_messages SET admin_reply = $1, replied_at = NOW() WHERE id = $2 RETURNING *`,
+      [reply, messageId]
+    );
+    return result.rows[0];
+  },
   async deleteContactMessage(messageId) {
     await pool.query(`DELETE FROM contact_messages WHERE id = $1`, [messageId]);
+  },
+  async getUserContactMessages(email) {
+    const result = await pool.query(
+      `SELECT * FROM contact_messages WHERE email = $1 ORDER BY created_at DESC`,
+      [email]
+    );
+    return result.rows;
+  },
+  async userReplyToMessage(messageId, email, reply) {
+    const result = await pool.query(
+      `UPDATE contact_messages 
+       SET user_reply = $1, user_replied_at = NOW() 
+       WHERE id = $2 AND email = $3 
+       RETURNING *`,
+      [reply, messageId, email]
+    );
+    return result.rows[0];
   },
   /* ===============================
      🌍 User Location Update
@@ -478,6 +522,26 @@ var storage = {
       `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
       [passwordHash, userId]
     );
+  },
+  async updateProfileSetup(userId, data) {
+    const result = await pool.query(
+      `UPDATE users 
+       SET profile_icon = $1, profile_color = $2, profile_setup_complete = $3, updated_at = NOW()
+       WHERE id = $4
+       RETURNING id, username, email, name, country, alien, profile_icon, profile_color, profile_setup_complete, is_admin AS "isAdmin"`,
+      [data.profile_icon, data.profile_color, data.profile_setup_complete, userId]
+    );
+    return result.rows[0];
+  },
+  async updateProfileIcon(userId, profile_icon) {
+    const result = await pool.query(
+      `UPDATE users 
+       SET profile_icon = $1, updated_at = NOW()
+       WHERE id = $2
+       RETURNING id, username, email, name, country, alien, profile_icon, profile_color, profile_setup_complete, is_admin AS "isAdmin"`,
+      [profile_icon, userId]
+    );
+    return result.rows[0];
   }
 };
 
@@ -575,7 +639,7 @@ router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password required" });
+      return res.status(400).json({ message: "Email/username and password required" });
     }
     const user = await storage.getUserByUsernameOrEmail(email);
     if (!user || !user.password_hash) {
@@ -635,7 +699,10 @@ router.get("/user", requireAuth, async (req, res) => {
       name: user.name ?? "",
       country: user.country ?? null,
       alien: user.alien,
-      is_admin: user.is_admin ?? false
+      is_admin: user.is_admin ?? false,
+      profile_icon: user.profile_icon ?? null,
+      profile_color: user.profile_color ?? null,
+      profile_setup_complete: user.profile_setup_complete ?? false
     });
   } catch (err) {
     console.error("\u274C Get user error:", err);
@@ -705,6 +772,44 @@ router.delete("/account", requireAuth, async (req, res) => {
     return res.status(500).json({ message: "Failed to delete account" });
   }
 });
+router.post("/profile-setup", requireAuth, async (req, res) => {
+  try {
+    const { profile_icon, profile_color } = req.body;
+    const userId = req.user.userId;
+    if (!profile_icon || !profile_color) {
+      return res.status(400).json({ message: "Icon and color are required" });
+    }
+    const updatedUser = await storage.updateProfileSetup(userId, {
+      profile_icon,
+      profile_color,
+      profile_setup_complete: true
+    });
+    return res.json({
+      message: "Profile setup completed successfully",
+      user: updatedUser
+    });
+  } catch (err) {
+    console.error("\u274C Profile setup error:", err);
+    return res.status(500).json({ message: "Failed to complete profile setup" });
+  }
+});
+router.patch("/profile-icon", requireAuth, async (req, res) => {
+  try {
+    const { profile_icon } = req.body;
+    const userId = req.user.userId;
+    if (!profile_icon) {
+      return res.status(400).json({ message: "Icon is required" });
+    }
+    const updatedUser = await storage.updateProfileIcon(userId, profile_icon);
+    return res.json({
+      message: "Profile icon updated successfully",
+      user: updatedUser
+    });
+  } catch (err) {
+    console.error("\u274C Profile icon update error:", err);
+    return res.status(500).json({ message: "Failed to update profile icon" });
+  }
+});
 var auth_default = router;
 
 // server/routes.ts
@@ -771,6 +876,16 @@ async function registerRoutes(app2) {
     } catch (err) {
       console.error("\u274C Error rejecting user:", err);
       return res.status(500).json({ message: "Failed to reject user" });
+    }
+  });
+  app2.delete("/api/admin/delete-user/:userId", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      await storage.deleteUser(userId);
+      return res.json({ message: "User deleted" });
+    } catch (err) {
+      console.error("\u274C Error deleting user:", err);
+      return res.status(500).json({ message: "Failed to delete user" });
     }
   });
   app2.post("/api/admin/invite-codes", requireAuth, requireAdmin, async (req, res) => {
@@ -1022,6 +1137,48 @@ async function registerRoutes(app2) {
       return res.status(500).json({ message: "Failed to delete message" });
     }
   });
+  app2.patch("/api/admin/contact-messages/:messageId/reply", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const { reply } = req.body;
+      if (!reply || reply.trim() === "") {
+        return res.status(400).json({ message: "Reply cannot be empty" });
+      }
+      const message = await storage.replyToContactMessage(messageId, reply);
+      return res.json({ message: "Reply sent successfully", data: message });
+    } catch (err) {
+      console.error("\u274C Error replying to message:", err);
+      return res.status(500).json({ message: "Failed to send reply" });
+    }
+  });
+  app2.get("/api/contact-messages", requireAuth, async (req, res) => {
+    try {
+      const email = req.user.email;
+      const messages = await storage.getUserContactMessages(email);
+      return res.json(messages);
+    } catch (err) {
+      console.error("\u274C Error fetching user messages:", err);
+      return res.status(500).json({ message: "Failed to fetch messages" });
+    }
+  });
+  app2.patch("/api/contact-messages/:messageId/user-reply", requireAuth, async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const { reply } = req.body;
+      const email = req.user.email;
+      if (!reply || reply.trim() === "") {
+        return res.status(400).json({ message: "Reply cannot be empty" });
+      }
+      const message = await storage.userReplyToMessage(messageId, email, reply);
+      if (!message) {
+        return res.status(404).json({ message: "Message not found or you don't have permission" });
+      }
+      return res.json({ message: "Reply sent successfully", data: message });
+    } catch (err) {
+      console.error("\u274C Error sending user reply:", err);
+      return res.status(500).json({ message: "Failed to send reply" });
+    }
+  });
   const activeUsers = /* @__PURE__ */ new Map();
   app2.post("/api/radr/update", requireAuth, async (req, res) => {
     const { lat, lng } = req.body;
@@ -1031,7 +1188,9 @@ async function registerRoutes(app2) {
     const userId = req.user.userId;
     const username = req.user.username;
     const now = Date.now();
-    activeUsers.set(userId, { userId, username, lat, lng, lastSeen: now });
+    const userProfile = await storage.getUserById(userId);
+    const profile_icon = userProfile?.profile_icon;
+    activeUsers.set(userId, { userId, username, lat, lng, lastSeen: now, profile_icon });
     const cutoff = now - 2 * 60 * 1e3;
     for (const [id, u] of activeUsers.entries()) {
       if (u.lastSeen < cutoff) activeUsers.delete(id);

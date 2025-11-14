@@ -44,7 +44,6 @@ export default function Terms() {
           transition={{ delay: 0.2 }}
           className="prose prose-invert max-w-none space-y-8"
         >
-          {/* Agreement */}
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold text-green-400">Agreement to Terms</h2>
             <p className="text-gray-300 leading-relaxed">
@@ -52,21 +51,19 @@ export default function Terms() {
             </p>
           </section>
 
-          {/* Use of Service */}
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold text-green-400">Use of Service</h2>
             <p className="text-gray-300 leading-relaxed">
-              Since On Earth provides a platform to track and visualize your travel history. By using our service, you agree to:
+              Since On Earth provides a platform to track and visualize your travel history. You agree to:
             </p>
             <ul className="list-disc list-inside text-gray-300 space-y-2 ml-4">
               <li>Provide accurate and complete information</li>
               <li>Keep your account credentials secure</li>
-              <li>Use the service in compliance with applicable laws</li>
+              <li>Use the service in compliance with all applicable laws</li>
               <li>Not misuse or disrupt the service</li>
             </ul>
           </section>
 
-          {/* User Accounts */}
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold text-green-400">User Accounts</h2>
             <p className="text-gray-300 leading-relaxed">
@@ -74,7 +71,6 @@ export default function Terms() {
             </p>
           </section>
 
-          {/* Content Ownership */}
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold text-green-400">Content Ownership</h2>
             <p className="text-gray-300 leading-relaxed">
@@ -82,19 +78,6 @@ export default function Terms() {
             </p>
           </section>
 
-          {/* Location & Nearby Users */}
-          <section className="space-y-4">
-            <h2 className="text-2xl font-semibold text-green-400">Location & Nearby Users</h2>
-            <p className="text-gray-300 leading-relaxed">
-              Using the radar feature requires temporary access to your device’s location to show your position and display nearby users in real time. 
-              <strong>We do not store location data on our servers.</strong> The location is used only while the radar feature is active.
-            </p>
-            <p className="text-gray-300 leading-relaxed">
-              By using the radar feature, you consent to temporarily sharing your location with nearby users within the app. You can disable location access at any time in your device settings.
-            </p>
-          </section>
-
-          {/* Service Availability */}
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold text-green-400">Service Availability</h2>
             <p className="text-gray-300 leading-relaxed">
@@ -102,7 +85,6 @@ export default function Terms() {
             </p>
           </section>
 
-          {/* Limitation of Liability */}
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold text-green-400">Limitation of Liability</h2>
             <p className="text-gray-300 leading-relaxed">
@@ -110,23 +92,20 @@ export default function Terms() {
             </p>
           </section>
 
-          {/* Lucide Icons */}
           <section className="space-y-4">
-            <h2 className="text-2xl font-semibold text-green-400">Use of Lucide Icons</h2>
+            <h2 className="text-2xl font-semibold text-green-400">Lucide Icons Usage</h2>
             <p className="text-gray-300 leading-relaxed">
-              This app uses <strong>Lucide icons</strong> (https://lucide.dev) for visual elements such as buttons, flight cards, and status indicators. Lucide icons are MIT-licensed and free for commercial and personal use.
+              This app uses <strong>Lucide icons</strong> (https://lucide.dev) for visual elements such as buttons, flight cards, and status indicators. Lucide icons are MIT-licensed, free for commercial and personal use, and may be modified. Use of these icons in the app does not require additional licenses.
             </p>
           </section>
 
-          {/* Changes to Terms */}
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold text-green-400">Changes to Terms</h2>
             <p className="text-gray-300 leading-relaxed">
-              We may update these terms periodically. Continued use of the service after changes constitutes acceptance of the new terms.
+              We may update these terms periodically. Continued use after changes constitutes acceptance of the new terms.
             </p>
           </section>
 
-          {/* Contact */}
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold text-green-400">Contact Information</h2>
             <p className="text-gray-300 leading-relaxed">

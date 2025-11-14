@@ -16,7 +16,8 @@ import {
   Trash2,
   Plus,
   Mail,
-  MailOpen
+  MailOpen,
+  MessageCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -62,6 +63,10 @@ interface ContactMessage {
   subject: string;
   message: string;
   is_read: boolean;
+  admin_reply: string | null;
+  replied_at: string | null;
+  user_reply: string | null;
+  user_replied_at: string | null;
   created_at: string;
 }
 
@@ -72,7 +77,9 @@ export default function Admin() {
   const [expiryDays, setExpiryDays] = useState("");
   const [expandedCode, setExpandedCode] = useState<string | null>(null);
   const [codeUsers, setCodeUsers] = useState<Record<string, CodeUser[]>>({});
-  const [selectedTab, setSelectedTab] = useState<string>("pending");
+  const [selectedTab, setSelectedTab] = useState<string>("users");
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState<string>("");
 
   const { data: pendingUsers } = useQuery<User[]>({
     queryKey: ["/api/admin/pending-users"],
@@ -157,7 +164,7 @@ export default function Admin() {
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const res = await apiRequest("DELETE", `/api/admin/reject-user/${userId}`);
+      const res = await apiRequest("DELETE", `/api/admin/delete-user/${userId}`);
       if (!res.ok) throw new Error("Failed");
     },
     onSuccess: () => {
@@ -186,6 +193,20 @@ export default function Admin() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/contact-messages"] });
       toast({ title: "Message deleted" });
+    },
+  });
+
+  const replyToMessageMutation = useMutation({
+    mutationFn: async ({ messageId, reply }: { messageId: string; reply: string }) => {
+      const res = await apiRequest("PATCH", `/api/admin/contact-messages/${messageId}/reply`, { reply });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/contact-messages"] });
+      toast({ title: "Reply sent successfully" });
+      setReplyingTo(null);
+      setReplyText("");
     },
   });
 
@@ -244,6 +265,19 @@ export default function Admin() {
         <div className="w-full overflow-x-auto scrollbar-hide mb-2">
           <div className="flex gap-7 py-4">
             <button
+              onClick={() => setSelectedTab("users")}
+              className={`px-4 py-2 transition-all whitespace-nowrap text-sm ${
+                "users" === selectedTab
+                  ? "bg-green-500 text-black rounded-full font-semibold"
+                  : "text-gray-400 hover:text-white rounded-full"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Users size={16} />
+                Users
+              </div>
+            </button>
+            <button
               onClick={() => setSelectedTab("pending")}
               className={`px-4 py-2 transition-all whitespace-nowrap text-sm ${
                 "pending" === selectedTab
@@ -270,19 +304,6 @@ export default function Admin() {
               </div>
             </button>
             <button
-              onClick={() => setSelectedTab("users")}
-              className={`px-4 py-2 transition-all whitespace-nowrap text-sm ${
-                "users" === selectedTab
-                  ? "bg-green-500 text-black rounded-full font-semibold"
-                  : "text-gray-400 hover:text-white rounded-full"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Users size={16} />
-                Users
-              </div>
-            </button>
-            <button
               onClick={() => setSelectedTab("messages")}
               className={`px-4 py-2 transition-all whitespace-nowrap text-sm ${
                 "messages" === selectedTab
@@ -302,7 +323,7 @@ export default function Admin() {
 
         {/* Pending Users */}
         {selectedTab === "pending" && (
-          <div className="w-full">
+          <div className="w-full max-w-7xl mx-auto">
             <div className="text-green-400 text-xl font-semibold mb-3">
               Pending Approvals
             </div>
@@ -354,7 +375,7 @@ export default function Admin() {
 
         {/* Invite Codes */}
         {selectedTab === "invites" && (
-          <div className="w-full">
+          <div className="w-full max-w-7xl mx-auto">
             <div className="mb-6">
               <button
                 onClick={() => {
@@ -480,7 +501,7 @@ export default function Admin() {
 
         {/* All Users */}
         {selectedTab === "users" && (
-          <div className="w-full">
+          <div className="w-full max-w-7xl mx-auto">
             <div className="text-green-400 text-xl font-semibold mb-3">
               All Users
             </div>
@@ -544,32 +565,32 @@ export default function Admin() {
 
         {/* Contact Messages */}
         {selectedTab === "messages" && (
-          <div className="w-full">
+          <div className="w-full max-w-5xl mx-auto">
             <div className="text-green-400 text-xl font-semibold mb-3">
               Contact Messages
             </div>
             {!contactMessages?.length ? (
               <div className="text-gray-400">No messages</div>
             ) : (
-              <div className="grid grid-cols-1 gap-4">
+              <div className={contactMessages.length > 1 ? "grid grid-cols-1 gap-2" : "grid grid-cols-1 gap-4"}>
                 {contactMessages.map((msg) => (
                   <div
                     key={msg.id}
-                    className={`p-4 border rounded-xl hover:shadow-lg transition-shadow ${
+                    className={`border rounded-xl hover:shadow-lg transition-shadow ${
                       msg.is_read
                         ? "bg-neutral-900/50 border-gray-700 opacity-80"
                         : "bg-neutral-900 border-green-700"
-                    }`}
+                    } ${contactMessages.length > 1 ? "p-3" : "p-4"}`}
                   >
-                    <div className="flex justify-between items-start gap-4 mb-3">
+                    <div className={contactMessages.length > 1 ? "flex justify-between items-start gap-4 mb-2" : "flex justify-between items-start gap-4 mb-3"}>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className={contactMessages.length > 1 ? "flex items-center gap-2 mb-0.5" : "flex items-center gap-2 mb-1"}>
                           {msg.is_read ? (
-                            <MailOpen className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <MailOpen className={contactMessages.length > 1 ? "h-3 w-3 text-gray-400 flex-shrink-0" : "h-4 w-4 text-gray-400 flex-shrink-0"} />
                           ) : (
-                            <Mail className="h-4 w-4 text-green-400 flex-shrink-0" />
+                            <Mail className={contactMessages.length > 1 ? "h-3 w-3 text-green-400 flex-shrink-0" : "h-4 w-4 text-green-400 flex-shrink-0"} />
                           )}
-                          <span className="font-semibold text-base text-white truncate">
+                          <span className={`font-semibold text-white truncate ${contactMessages.length > 1 ? "text-sm" : "text-base"}`}>
                             {msg.subject}
                           </span>
                           {!msg.is_read && (
@@ -578,11 +599,11 @@ export default function Admin() {
                             </span>
                           )}
                         </div>
-                        <div className="text-sm text-gray-300">
+                        <div className={contactMessages.length > 1 ? "text-xs text-gray-300" : "text-sm text-gray-300"}>
                           From: <span className="font-medium">{msg.name}</span> ({msg.email})
                         </div>
-                        <div className="text-xs text-gray-400 mt-1">
-                          {new Date(msg.created_at).toLocaleString()}
+                        <div className={contactMessages.length > 1 ? "text-xs text-gray-400 mt-0.5" : "text-xs text-gray-400 mt-1"}>
+                          {contactMessages.length > 1 ? new Date(msg.created_at).toLocaleDateString() : new Date(msg.created_at).toLocaleString()}
                         </div>
                       </div>
                       <div className="flex gap-2 flex-shrink-0">
@@ -610,12 +631,85 @@ export default function Admin() {
                         </Button>
                       </div>
                     </div>
-                    <div className="bg-black rounded-lg p-3 mt-3">
-                      <p className="text-gray-300 text-sm whitespace-pre-wrap">{msg.message}</p>
+                    <div className={`bg-black rounded-lg ${contactMessages.length > 1 ? "p-2 mt-2" : "p-3 mt-3"}`}>
+                      <p className={`text-gray-300 whitespace-pre-wrap ${contactMessages.length > 1 ? "text-xs" : "text-sm"}`}>{msg.message}</p>
                     </div>
-                    <div className="mt-3 text-xs text-gray-400">
-                      Reply to: <a href={`mailto:${msg.email}`} className="text-green-400 hover:text-green-300">{msg.email}</a>
-                    </div>
+                    
+                    {msg.admin_reply && (
+                      <div className={`bg-green-900/20 border border-green-700/50 rounded-lg ${contactMessages.length > 1 ? "mt-2 p-2" : "mt-3 p-3"}`}>
+                        <div className={contactMessages.length > 1 ? "flex items-center gap-2 mb-1" : "flex items-center gap-2 mb-2"}>
+                          <CheckCircle2 className={contactMessages.length > 1 ? "h-3 w-3 text-green-400" : "h-4 w-4 text-green-400"} />
+                          <span className="text-xs text-green-400 font-semibold">Admin Reply</span>
+                          <span className="text-xs text-gray-400">
+                            {msg.replied_at && (contactMessages.length > 1 ? new Date(msg.replied_at).toLocaleDateString() : new Date(msg.replied_at).toLocaleString())}
+                          </span>
+                        </div>
+                        <p className={`text-gray-300 whitespace-pre-wrap ${contactMessages.length > 1 ? "text-xs" : "text-sm"}`}>{msg.admin_reply}</p>
+                      </div>
+                    )}
+
+                    {msg.user_reply && (
+                      <div className={`bg-blue-900/20 border border-blue-700/50 rounded-lg ${contactMessages.length > 1 ? "mt-2 p-2" : "mt-3 p-3"}`}>
+                        <div className={contactMessages.length > 1 ? "flex items-center gap-2 mb-1" : "flex items-center gap-2 mb-2"}>
+                          <MessageCircle className={contactMessages.length > 1 ? "h-3 w-3 text-blue-400" : "h-4 w-4 text-blue-400"} />
+                          <span className="text-xs text-blue-400 font-semibold">User Reply</span>
+                          <span className="text-xs text-gray-400">
+                            {msg.user_replied_at && (contactMessages.length > 1 ? new Date(msg.user_replied_at).toLocaleDateString() : new Date(msg.user_replied_at).toLocaleString())}
+                          </span>
+                        </div>
+                        <p className={`text-gray-300 whitespace-pre-wrap ${contactMessages.length > 1 ? "text-xs" : "text-sm"}`}>{msg.user_reply}</p>
+                      </div>
+                    )}
+
+                    {!msg.is_read && (
+                      replyingTo === msg.id ? (
+                        <div className="mt-3">
+                          <textarea
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="Type your reply..."
+                            className="w-full bg-black border border-gray-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-green-500 min-h-[100px]"
+                          />
+                          <div className="flex gap-2 mt-2">
+                            <Button
+                              onClick={() => {
+                                if (replyText.trim()) {
+                                  replyToMessageMutation.mutate({ messageId: msg.id, reply: replyText });
+                                }
+                              }}
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              disabled={!replyText.trim() || replyToMessageMutation.isPending}
+                            >
+                              Send Reply
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setReplyingTo(null);
+                                setReplyText("");
+                              }}
+                              size="sm"
+                              variant="outline"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3 flex gap-2">
+                          <Button
+                            onClick={() => {
+                              setReplyingTo(msg.id);
+                              setReplyText(msg.admin_reply || "");
+                            }}
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700"
+                          >
+                            {msg.admin_reply ? "Edit Reply" : "Reply"}
+                          </Button>
+                        </div>
+                      )
+                    )}
                   </div>
                 ))}
               </div>

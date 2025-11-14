@@ -9,6 +9,10 @@
    🎨 Base Font & Background Styling
    ============================ */
 @layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   html, body {
     @apply font-sans antialiased bg-black text-white h-full;
   }

@@ -146,17 +146,17 @@ export default function Login() {
         <form
           onSubmit={form.handleSubmit((data) =>
             loginMutation.mutate({
-              email: data.email.trim().toLowerCase(),
+              email: data.email.trim(),
               password: data.password,
             })
           )}
           className="space-y-4"
         >
-          {/* Email */}
+          {/* Email or Username */}
           <Input
             id="email"
-            type="email"
-            placeholder="Email"
+            type="text"
+            placeholder="Email or Username"
             autoCapitalize="none"
             autoCorrect="off"
             className="w-full h-14 bg-black text-white border border-white focus:border-green-500 focus:ring focus:ring-green-600"

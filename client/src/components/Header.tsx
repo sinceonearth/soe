@@ -1,17 +1,19 @@
 "use client";
 
-import { Icon, Satellite } from "lucide-react";
-import { faceAlien } from "@lucide/lab";
+import { Satellite } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { useEffect, useState } from "react";
+import { UserIcon } from "@/components/UserIcon";
 
 export const Header = () => {
   const { user } = useAuth();
   const [location, navigate] = useLocation();
   const [topInset, setTopInset] = useState(0);
   const [mounted, setMounted] = useState(false); // ✅ Only render after hydration
+  const [isVisible, setIsVisible] = useState(true); // Track header visibility
+  const [lastScrollY, setLastScrollY] = useState(0); // Track last scroll position
 
   const isRadrOpen = location === "/radr";
 
@@ -36,18 +38,44 @@ export const Header = () => {
     setMounted(true); // ✅ Header now renders only after hydration
   }, []);
 
+  // Auto-hide header on scroll down, show on scroll up
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY < 10) {
+        // Always show header at top of page
+        setIsVisible(true);
+      } else if (currentScrollY > lastScrollY) {
+        // Scrolling down - hide header
+        setIsVisible(false);
+      } else if (currentScrollY < lastScrollY) {
+        // Scrolling up - show header
+        setIsVisible(true);
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [lastScrollY]);
+
   if (!mounted) return null; // Prevent blink on web
 
   return (
     <header
-      className="fixed top-0 left-0 w-full z-50 bg-transparent backdrop-blur-md"
-      style={{ paddingTop: topInset }}
+      className="fixed top-0 left-0 w-full z-50 bg-transparent backdrop-blur-md transition-transform duration-300"
+      style={{ 
+        paddingTop: topInset,
+        transform: isVisible ? 'translateY(0)' : 'translateY(-100%)'
+      }}
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-6">
         <div className="flex items-center gap-2">
-          {/* Alien icon */}
-          <button className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition-all duration-300">
-            <Icon iconNode={faceAlien} className="h-6 w-6 text-white" />
+          {/* User icon */}
+          <button className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 active:bg-white/10 transition-all duration-300">
+            <UserIcon iconName={user?.profile_icon} className="h-6 w-6 text-white" />
           </button>
 
           {/* User badge */}
@@ -57,7 +85,7 @@ export const Header = () => {
             transition={{ duration: 0.4 }}
             className="flex items-center"
           >
-            <div className="px-4 py-1.5 rounded-full bg-white/20 text-white font-semibold text-sm shadow-sm flex items-center gap-1.5">
+            <div className="px-4 py-1.5 rounded-full bg-white/10 text-white font-semibold text-sm flex items-center gap-1.5">
               <span>alien #{user?.alien ?? "—"}</span>
             </div>
           </motion.div>
@@ -66,7 +94,7 @@ export const Header = () => {
         {/* Satellite icon */}
         <button
           onClick={toggleRadr}
-          className="flex h-12 w-12 items-center justify-center rounded-full transition-all duration-300"
+          className="flex h-12 w-12 items-center justify-center rounded-full transition-all duration-300 active:opacity-80"
         >
           <Satellite
             className="h-9 w-9"
